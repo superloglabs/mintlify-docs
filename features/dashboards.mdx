@@ -1,0 +1,135 @@
+---
+title: "Build Custom Dashboards for Your Telemetry"
+sidebarTitle: "Dashboards"
+description: "Superlog dashboards let you visualize traces, logs, and metrics with drag-and-drop widgets. Add timeseries charts, log tables, and trace tables to any dashboard."
+---
+
+Dashboards give you a drag-and-drop canvas of widgets that visualize the OpenTelemetry data flowing into your project. You can mix and match timeseries charts, log tables, trace tables, and free-text notes on a single page — then use template variables to drive all those widgets from a single dropdown filter.
+
+## Widget types
+
+Superlog supports five widget types. Each one maps directly to a telemetry signal and renders appropriate controls when you configure it.
+
+<CardGroup cols={2}>
+  <Card title="timeseries_count" icon="chart-line">
+    Plots the count of log records or trace spans over time. Use this to track error rates, request volumes, or any event frequency.
+  </Card>
+  <Card title="timeseries_metric" icon="chart-area">
+    Plots raw metric values (gauge or sum) over time. Ideal for CPU usage, queue depths, latency percentiles, and custom business metrics.
+  </Card>
+  <Card title="trace_table" icon="table">
+    A filterable table of spans. Shows the most recent spans matching your filter criteria with columns for service, span name, duration, and status.
+  </Card>
+  <Card title="log_table" icon="list">
+    A filterable table of log records. Shows the most recent log entries matching your filter criteria with severity, body, and attributes.
+  </Card>
+  <Card title="markdown" icon="text">
+    A free-text notes panel rendered as Markdown. Use it to add context, runbooks, or links alongside your charts.
+  </Card>
+</CardGroup>
+
+## Creating a dashboard
+
+<Steps>
+  <Step title="Open the Dashboards section">
+    Navigate to **Dashboards** in the left sidebar. You'll see a list of all dashboards in your active project.
+  </Step>
+  <Step title="Create a new dashboard">
+    Click **New Dashboard**, enter a name, and confirm. Superlog generates a URL-friendly slug from the name automatically.
+  </Step>
+  <Step title="Add your first widget">
+    Inside the new dashboard, click **+ add widget**. Choose a widget type, give it a title, and configure its filters (see below). Click **Save** to place it on the canvas.
+  </Step>
+</Steps>
+
+## Adding and configuring widgets
+
+When you open the widget form you can configure:
+
+- **Type** — one of the five widget types above
+- **Title** — a short label shown in the widget header (max 200 characters)
+- **Filters** — narrow which events the widget displays:
+  - `service` — match a specific `service.name` value
+  - `resource_attrs` — equality filters on any OTel resource attribute (e.g. `deployment.environment = prod`)
+  - `span_attrs` / `log_attrs` — equality filters on per-span or per-log-record attributes (e.g. `http.route = /api/orders`)
+- **Metric name** — required for `timeseries_metric` widgets; the exact metric name as emitted by your SDK
+
+<Tip>
+  Leave filters broad when you first create a widget, then narrow them once you see the data shape. You can always edit a widget by clicking the gear icon in its header.
+</Tip>
+
+## Dashboard layout
+
+The canvas uses a **12-column grid** with a row height of 60 px. You can drag widgets to reposition them and drag their edges to resize. Each widget type has a minimum width:
+
+| Widget type | Min width (columns) |
+|---|---|
+| `timeseries_count` | 3 |
+| `timeseries_metric` | 3 |
+| `trace_table` | 6 |
+| `log_table` | 6 |
+| `markdown` | 3 |
+
+The default sizes (used when adding via the MCP server) are **6 × 4** for timeseries charts, **12 × 6** for tables, and **4 × 5** for markdown panels.
+
+## Time range picker
+
+Every dashboard has a time range selector in the top-right corner. You can choose from preset windows (Last 1h, Last 6h, Last 24h, Last 7d, and more) or enter a custom range. All widgets on the page respond to the selected range simultaneously.
+
+## Template variables
+
+Template variables let a single dropdown drive filter values across every widget on your dashboard. For example, an `env` variable with options `prod` and `staging` lets you switch all your charts between environments with one click.
+
+### How variables work
+
+1. You define a variable with a **name**, a list of **options**, and an optional **default value**.
+2. You reference the variable in any widget filter value using the token `$name` or `${name}`.
+3. When you view the dashboard, Superlog renders a dropdown per variable and substitutes the selected option into every filter that references it.
+
+Variable names must start with a letter and contain only letters, digits, or underscores. If you leave `options` empty, the variable becomes free-form (the viewer can type any value).
+
+### Creating variables
+
+Click **Manage variables** (shown in the variable bar at the top of the dashboard) to open the variables editor. Add an entry with:
+
+- **name** — the token used in filter values (e.g. `env`)
+- **options** — the selectable list (e.g. `prod`, `staging`)
+- **defaultValue** — which option is selected on first load (must be one of `options` when `options` is non-empty)
+- **label** *(optional)* — a display label shown in the dropdown instead of the name
+- **attributeKey** *(optional)* — powers a one-click "filter by this variable" shortcut in the widget editor
+
+### Variable example
+
+Define an `env` variable with options `prod` and `staging`. Then configure a widget's `resource_attrs` filter:
+
+```json
+{
+  "resourceAttrs": [
+    { "key": "deployment.environment", "value": "$env" }
+  ]
+}
+```
+
+Every widget that references `$env` updates when you switch the dropdown — no need to edit each widget individually.
+
+## MCP-managed dashboards
+
+You can create and manage dashboards programmatically through the Superlog MCP server. The following tools are available:
+
+| Tool | Description |
+|---|---|
+| `list_dashboards` | List all dashboards in a project |
+| `get_dashboard` | Fetch a dashboard and all its widgets |
+| `create_dashboard` | Create a dashboard, optionally seeding template variables |
+| `update_dashboard` | Rename a dashboard |
+| `set_dashboard_variables` | Replace the full variable list on a dashboard |
+| `add_dashboard_widget` | Append a widget to a dashboard |
+| `update_dashboard_widget` | Patch a widget's title, config, or layout |
+| `delete_dashboard_widget` | Remove a widget from a dashboard |
+| `delete_dashboard` | Delete a dashboard and all its widgets |
+
+<Note>
+  When using `set_dashboard_variables`, the call **replaces** the full variable list. Call `get_dashboard` first and include any variables you want to keep alongside the new ones.
+</Note>
+
+For the full list of parameters and authentication details, see the [MCP tools reference](/api/mcp-tools).

@@ -1,0 +1,164 @@
+---
+title: "Use Superlog's MCP Server with Your AI Assistant"
+sidebarTitle: "MCP Server"
+description: "Superlog exposes a Model Context Protocol server so Claude, Cursor, and other AI assistants can query your telemetry, incidents, and dashboards in real time."
+---
+
+Superlog implements the [Model Context Protocol (MCP)](https://modelcontextprotocol.io) so you can connect AI coding assistants — Claude Desktop, Claude Code, Cursor, Windsurf, Codex, and any other MCP-aware client — directly to your observability data. Once connected, your AI assistant can query logs and traces, read incidents, manage dashboards, and tune investigation behavior, all without leaving your editor.
+
+## MCP endpoint
+
+```
+https://api.superlog.sh/mcp
+```
+
+The endpoint uses **streamable HTTP** with stateless sessions. Each request is independently authenticated — there is no persistent WebSocket connection to maintain.
+
+## Authentication
+
+You can authenticate MCP requests with either a **Personal Access Token (PAT)** or an **OAuth 2.0 token**. Both are passed as a standard `Authorization: Bearer <token>` header.
+
+### Personal Access Tokens
+
+PATs are the fastest way to get started. They're scoped to a specific project and are shown only once at creation time.
+
+<Steps>
+  <Step title="Open API Tokens settings">
+    Navigate to **Settings → Project → MCP tokens** in the Superlog dashboard.
+  </Step>
+  <Step title="Mint a new token">
+    Click **New Token**, give it a descriptive name, select the project it should default to, and choose an expiry (or select "never").
+  </Step>
+  <Step title="Copy the token">
+    The plaintext token starts with `sl_pat_` and is displayed **only once**. Copy it now and store it in your secrets manager or shell environment.
+  </Step>
+</Steps>
+
+<Warning>
+  PATs cannot be recovered after you navigate away from the creation screen. If you lose a token, revoke it and mint a new one.
+</Warning>
+
+### OAuth 2.0
+
+MCP clients that support OAuth 2.0 (such as Claude Desktop and Cursor) can authenticate via the standard authorization code flow. The well-known metadata endpoint is:
+
+```
+https://api.superlog.sh/.well-known/oauth-protected-resource
+```
+
+On first connection, the client opens a browser window for you to authorize access. The resulting OAuth token is stored and refreshed by the client automatically.
+
+## Quick install with the dashboard button
+
+The dashboard includes a **Connect MCP** button under **Settings → MCP** that walks you through connecting Claude Code, Cursor, or Codex with one command. Select your client and run the generated command in your terminal:
+
+<CodeGroup>
+```bash Claude Code
+claude mcp add --transport http superlog https://api.superlog.sh/mcp
+```
+
+```bash Codex
+codex mcp add superlog --url https://api.superlog.sh/mcp
+codex mcp login superlog
+```
+
+```json Cursor (mcp.json)
+{
+  "mcpServers": {
+    "superlog": {
+      "url": "https://api.superlog.sh/mcp"
+    }
+  }
+}
+```
+</CodeGroup>
+
+If you're using a different agent, most MCP-aware tools accept the same `https://api.superlog.sh/mcp` URL. Pass your PAT as `Authorization: Bearer <token>` in the request headers.
+
+### Skills install prompt
+
+For AI coding agents that support skill installation, run this prompt to have the agent configure Superlog automatically:
+
+```
+Run npx skills add superloglabs/skills --all and use the skills to install Superlog in this project
+```
+
+You can use this with Cursor, Claude Code, and other agents that support the skills protocol.
+
+## Available tools
+
+### Telemetry
+
+Query the raw OpenTelemetry data flowing into your project.
+
+| Tool | Description |
+|---|---|
+| `query_logs` | Search log records with filters for service, severity, body substring, resource attributes, and log attributes |
+| `query_traces` | Search spans with filters for service, span name, status code, duration, resource attributes, and span attributes |
+| `query_metrics` | Fetch metric data points across gauge, sum, histogram, and summary tables |
+| `list_services` | List distinct `service.name` values emitting telemetry in a given time window |
+
+### Incidents
+
+| Tool | Description |
+|---|---|
+| `get_incident` | Fetch a single incident with its investigation results |
+| `search_incidents` | Search incidents by status, severity, service, or free-text |
+
+### Dashboards
+
+| Tool | Description |
+|---|---|
+| `list_dashboards` | List all dashboards in a project |
+| `get_dashboard` | Fetch a dashboard and all its widgets |
+| `create_dashboard` | Create a dashboard, optionally seeding template variables |
+| `update_dashboard` | Rename a dashboard |
+| `set_dashboard_variables` | Replace the full variable list on a dashboard |
+| `add_dashboard_widget` | Append a widget to a dashboard |
+| `update_dashboard_widget` | Patch a widget's title, config, or layout |
+| `delete_dashboard_widget` | Remove a widget from a dashboard |
+| `delete_dashboard` | Delete a dashboard and all its widgets |
+
+### Agent configuration
+
+| Tool | Description |
+|---|---|
+| `get_issue_filter` | Read the current issue filter configuration |
+| `update_issue_filter` | Update exclude/include clauses for spans and logs |
+| `preview_issue_filter` | Preview filter changes against recent events without saving |
+| `get_project_context` | Read the project's freeform architecture context |
+| `set_project_context` | Overwrite the project context (max 8,000 chars) |
+| `create_agent_memory` | Store a durable fact for future investigations |
+| `list_agent_memories` | List all stored memories for the org |
+| `update_agent_memory` | Patch a memory's kind, title, body, or status |
+| `delete_agent_memory` | Permanently delete a stored memory |
+
+### Projects
+
+| Tool | Description |
+|---|---|
+| `list_projects` | List every project you can access across all orgs |
+| `get_active_project` | Return the project tools default to when `project_id` is omitted |
+| `set_active_project` | Change the default project for this session |
+
+### Alerts
+
+| Tool | Description |
+|---|---|
+| `list_alerts` | List all alerts in a project |
+| `get_alert` | Fetch a single alert with its 50 most recent firings |
+| `create_alert` | Create a new alert |
+| `update_alert` | Patch an existing alert |
+| `delete_alert` | Delete an alert |
+| `preview_alert` | Evaluate a draft alert spec against current data without saving |
+| `test_alert` | Re-evaluate a saved alert against current data |
+
+## Telemetry-only mode
+
+PATs minted with the `superlog:telemetry` scope give access **only** to the telemetry tools (`query_logs`, `query_traces`, `query_metrics`, `list_services`). All incident, dashboard, agent config, and alert tools are unavailable in this mode. Use telemetry-only tokens when you want to give a tool read access to raw data without the ability to modify project configuration.
+
+<Info>
+  Telemetry-only sessions also omit the agent configuration instructions that Superlog normally injects into the MCP `initialize` response, since those instructions reference tools that aren't available in the restricted scope.
+</Info>
+
+For a complete parameter reference for every tool, see [MCP tools](/api/mcp-tools). For an overview of the MCP protocol itself and how Superlog implements it, see [MCP overview](/api/mcp-overview).

@@ -1,72 +1,99 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "Superlog",
+  "theme": "luma",
+  "favicon": "https://media.brand.dev/b517a2c9-12a7-4caa-9afc-34d21e942292.jpg",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
-  },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "primary": "#7c7c7c",
+    "light": "#050505",
+    "dark": "#d1d1d1"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/superloglabs/superlog"
     }
   },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "self-hosting"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/incidents",
+              "concepts/agent-runs",
+              "concepts/projects-and-orgs",
+              "concepts/telemetry"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/github",
+              "integrations/slack",
+              "integrations/linear",
+              "integrations/aws"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/dashboards",
+              "features/alerts",
+              "features/source-maps",
+              "features/issue-filters",
+              "features/agent-memory",
+              "features/mcp"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/ingest-keys",
+              "configuration/agent-settings",
+              "configuration/webhooks"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Management API",
+            "pages": [
+              "api/overview",
+              "api/authentication",
+              "api/projects",
+              "api/api-keys",
+              "api/telemetry-read"
+            ]
+          },
+          {
+            "group": "OTLP Ingest",
+            "pages": [
+              "api/otlp-ingest"
+            ]
+          },
+          {
+            "group": "MCP Server",
+            "pages": [
+              "api/mcp-overview",
+              "api/mcp-tools"
+            ]
+          }
+        ]
+      }
     ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
   }
 }

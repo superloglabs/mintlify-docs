@@ -1,0 +1,111 @@
+---
+title: "OpenTelemetry Data in Superlog"
+sidebarTitle: "Telemetry"
+description: "Superlog ingests OpenTelemetry traces, logs, and metrics over OTLP. Learn what data Superlog stores and how to query it."
+---
+
+Superlog is built on [OpenTelemetry](https://opentelemetry.io/) (OTel). It accepts all three OTel signal types — **traces**, **logs**, and **metrics** — over the standard OTLP HTTP protocol. If your services are already instrumented with an OpenTelemetry SDK or agent, you can point them at Superlog without changing your instrumentation code.
+
+## Ingest endpoints
+
+Send your telemetry to the following OTLP HTTP endpoints. All endpoints accept both `application/x-protobuf` and `application/json` content types.
+
+| Signal | Endpoint |
+|---|---|
+| Traces | `POST /v1/traces` |
+| Logs | `POST /v1/logs` |
+| Metrics | `POST /v1/metrics` |
+| AWS Firehose (metrics) | `POST /aws/firehose/metrics` |
+| AWS Firehose (logs) | `POST /aws/firehose/logs` |
+
+The AWS Firehose endpoints accept CloudWatch Metric Streams (OTLP format) and CloudWatch Logs subscription filters respectively. They authenticate using the `X-Amz-Firehose-Access-Key` header rather than the standard `Authorization` header.
+
+## Authentication
+
+All OTLP ingest requests require your project's ingest API key (`sl_public_` prefix). Pass it as a Bearer token in the `Authorization` header:
+
+```http
+POST /v1/traces HTTP/1.1
+Host: ingest.superlog.sh
+Authorization: Bearer sl_public_<your-key>
+Content-Type: application/x-protobuf
+```
+
+You can also pass the key in the `x-api-key` header if your SDK or collector does not support Bearer auth.
+
+<Warning>
+Never use a management key (`sl_management_`) for OTLP ingest. Management keys are for the REST API only; sending them to the ingest endpoint will return a `401` error.
+</Warning>
+
+## Resource attributes
+
+Superlog uses standard OTel resource attributes to organize your data across the dashboard, filters, and incident grouping. Set these attributes in your SDK's `Resource` configuration:
+
+| Attribute | Purpose |
+|---|---|
+| `service.name` | Identifies which service produced the telemetry. Used throughout Superlog for filtering, incident grouping, and the service map. |
+| `deployment.environment` | Identifies the environment (e.g. `production`, `staging`). Appears as a filter on the Incidents and Explore pages. |
+| `service.version` | Used by the agent to correlate deployments with incident timelines. |
+
+<Tip>
+Always set `service.name`. Without it, Superlog cannot group your telemetry by service and the incident grouping and service map features will be less accurate.
+</Tip>
+
+## Traces
+
+Superlog stores distributed traces as collections of spans. Each span includes its attributes, events, links, status, and timing. You can explore traces in the **Explore → Traces** view or retrieve a specific trace by ID via the management API.
+
+### Span status and incident grouping
+
+Superlog triggers incident grouping when a span's status code is `STATUS_CODE_ERROR`. A few key points about when this is set:
+
+- **HTTP 5xx responses** should set `STATUS_CODE_ERROR` on the server span, per OTel HTTP semantic conventions.
+- **HTTP 4xx responses** (client errors) should remain `STATUS_CODE_UNSET` — they are not automatically promoted to errors. Only set `STATUS_CODE_ERROR` for 4xx responses that represent genuine server-side failures in your application logic.
+- **Exception events** on a span do not automatically set the span status to error — your instrumentation must call `span.setStatus({ code: ERROR })` explicitly, or use an SDK that does this automatically (many do for unhandled exceptions).
+
+<Note>
+This behavior follows the [OTel HTTP semantic conventions](https://opentelemetry.io/docs/specs/semconv/http/http-spans/). It means 404 errors from clients will not create incidents, which is usually what you want — an absent resource is a client problem, not a server problem.
+</Note>
+
+## Logs
+
+Superlog stores log records with their severity, body, attributes, trace context (`trace_id`, `span_id`), and resource attributes. Logs at `ERROR` severity trigger incident grouping alongside error spans.
+
+You can explore logs in the **Explore → Logs** view, filter by service, severity, or free text, and correlate them with traces when `trace_id` is present.
+
+## Metrics
+
+Superlog supports all four OTel metric instrument types:
+
+| Type | Description |
+|---|---|
+| Gauge | A point-in-time measurement (e.g. memory usage, queue depth) |
+| Sum | A cumulative or delta counter (e.g. request count, bytes sent) |
+| Histogram | A distribution of values with configurable bucket boundaries (e.g. request duration) |
+| Summary | Pre-computed quantiles from the SDK (e.g. p50, p99 latency) |
+
+Metrics are queryable in the **Explore → Metrics** view and can be used as the basis for dashboard panels and alerts.
+
+## Querying your data
+
+Once your telemetry is flowing, you can access it from several places:
+
+<CardGroup cols={2}>
+  <Card title="Explore view" icon="magnifying-glass-chart">
+    Interactive query interface for traces, logs, and metrics. Filter by service, time range, severity, attributes, and more.
+  </Card>
+  <Card title="Dashboards" icon="chart-line">
+    Build panels from metrics and log queries. Share dashboards with your team or embed them in runbooks.
+  </Card>
+  <Card title="Alerts" icon="bell">
+    Define threshold and anomaly alerts on metrics or log patterns. Route notifications to Slack or PagerDuty.
+  </Card>
+  <Card title="MCP server" icon="robot">
+    Query traces and logs programmatically from your AI assistant using `query_traces` and `query_logs` MCP tools. The agent uses these same tools during incident investigations.
+  </Card>
+</CardGroup>
+
+## Related pages
+
+- [OTLP Ingest API](/api/otlp-ingest) — full reference for ingest endpoints, request formats, and response codes
+- [Ingest Keys](/configuration/ingest-keys) — create and manage the API keys used to authenticate OTLP requests

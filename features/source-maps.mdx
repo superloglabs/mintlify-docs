@@ -1,0 +1,110 @@
+---
+title: "Upload Source Maps for Readable JavaScript Stack Traces"
+sidebarTitle: "Source Maps"
+description: "Upload JavaScript source maps to Superlog so stack traces in incidents and logs show original file names and line numbers instead of minified code."
+---
+
+When your JavaScript application is bundled and minified for production, stack traces become nearly unreadable — file names like `bundle.min.js` and line numbers that point to a single concatenated line tell you nothing. Superlog uses uploaded source maps to **symbolicate** those stack traces, replacing minified references with the original file paths and line numbers from your source code.
+
+## How it works
+
+After you upload a source map for a given release, Superlog matches it against incoming error events using the `release`, `dist`, `debugId`, and `mapFile` fields you provided at upload time. When a match is found, stack frames are rewritten in-place before they appear in incidents, logs, and AI investigations — so your team always sees original source locations without any manual lookup.
+
+<Note>
+  Source maps are stored securely and are never exposed publicly. Only authenticated members of your organization can access symbolication results.
+</Note>
+
+## Upload endpoint
+
+Source maps are uploaded to the **management API** using your organization API key:
+
+```
+POST /api/org/projects/:projectId/source-maps
+Authorization: Bearer <your-management-api-key>
+Content-Type: application/json
+```
+
+## Upload payload
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `platform` | string | ✅ | Runtime platform, e.g. `"browser"` or `"node"` (max 32 chars) |
+| `release` | string | ✅ | Your application version string, e.g. `"1.4.2"` or a git SHA (max 200 chars) |
+| `dist` | string | — | Build variant identifier, e.g. `"production"` (max 200 chars) |
+| `debugId` | string | — | Debug ID embedded in the bundle by your build tool. When provided, re-uploading with the same `debugId` updates the existing record instead of creating a duplicate |
+| `bundleFile` | string | — | Path to the JavaScript bundle file, e.g. `"dist/main.js"` (max 500 chars) |
+| `mapFile` | string | ✅ | Path to the source map file, e.g. `"dist/main.js.map"` (max 500 chars) |
+| `sourceMap` | string | ✅ | The full source map JSON content (must contain a `sources` array) |
+| `sourceMapHash` | string | ✅ | SHA-256 hex digest of the `sourceMap` string — used to verify integrity |
+| `sourceMapBytes` | integer | ✅ | Byte length of the `sourceMap` string. Maximum **25 MB** |
+
+<Warning>
+  `sourceMapHash` and `sourceMapBytes` must exactly match the `sourceMap` content you provide. Superlog validates both before storing the artifact and will reject the upload if they differ.
+</Warning>
+
+## Node.js upload example
+
+The following script computes the required hash and byte length, then posts the source map to Superlog. Run it as part of your build pipeline after bundling.
+
+```js
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+const PROJECT_ID = process.env.SUPERLOG_PROJECT_ID;
+const API_KEY = process.env.SUPERLOG_MANAGEMENT_KEY;
+const RELEASE = process.env.npm_package_version ?? "unknown";
+
+const mapFile = "dist/main.js.map";
+const bundleFile = "dist/main.js";
+
+const sourceMap = readFileSync(mapFile, "utf8");
+const sourceMapBytes = Buffer.byteLength(sourceMap);
+const sourceMapHash = createHash("sha256").update(sourceMap).digest("hex");
+
+const response = await fetch(
+  `https://api.superlog.sh/api/org/projects/${PROJECT_ID}/source-maps`,
+  {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      platform: "browser",
+      release: RELEASE,
+      bundleFile,
+      mapFile,
+      sourceMap,
+      sourceMapHash,
+      sourceMapBytes,
+    }),
+  }
+);
+
+if (!response.ok) {
+  const error = await response.text();
+  console.error("Source map upload failed:", error);
+  process.exit(1);
+}
+
+console.log("Source map uploaded successfully for release", RELEASE);
+```
+
+## CI/CD automation
+
+<Tip>
+  Add the upload script as the last step in your build job, after the bundle is produced but before deployment. Pass `RELEASE` as your Git SHA (`$GITHUB_SHA`) or semantic version tag to ensure each deployment maps to a unique artifact.
+</Tip>
+
+A typical GitHub Actions workflow step looks like this:
+
+```yaml
+- name: Upload source maps to Superlog
+  env:
+    SUPERLOG_PROJECT_ID: ${{ secrets.SUPERLOG_PROJECT_ID }}
+    SUPERLOG_MANAGEMENT_KEY: ${{ secrets.SUPERLOG_MANAGEMENT_KEY }}
+    npm_package_version: ${{ github.sha }}
+  run: node scripts/upload-source-maps.js
+```
+
+For Node.js applications running server-side, set `platform: "node"` and point `mapFile` at your compiled server bundle's map file.

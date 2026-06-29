@@ -1,0 +1,143 @@
+{
+  "projectType": "saas",
+  "projectName": "Superlog",
+  "projectDescription": "An open-source agentic observability platform that ingests OpenTelemetry traces, logs, and metrics, groups noisy signals into incidents, and uses AI agents to automatically investigate and self-heal production software.",
+  "theme": "luma",
+  "primaryColor": "#7c7c7c",
+  "lightColor": "#050505",
+  "darkColor": "#d1d1d1",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "self-hosting"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/incidents",
+              "concepts/agent-runs",
+              "concepts/projects-and-orgs",
+              "concepts/telemetry"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/github",
+              "integrations/slack",
+              "integrations/linear",
+              "integrations/aws"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/dashboards",
+              "features/alerts",
+              "features/source-maps",
+              "features/issue-filters",
+              "features/agent-memory",
+              "features/mcp"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/ingest-keys",
+              "configuration/agent-settings",
+              "configuration/webhooks"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Management API",
+            "pages": [
+              "api/overview",
+              "api/authentication",
+              "api/projects",
+              "api/api-keys",
+              "api/telemetry-read"
+            ]
+          },
+          {
+            "group": "OTLP Ingest",
+            "pages": [
+              "api/otlp-ingest"
+            ]
+          },
+          {
+            "group": "MCP Server",
+            "pages": [
+              "api/mcp-overview",
+              "api/mcp-tools"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Automatic incident grouping from OpenTelemetry traces, logs, and metrics",
+    "AI agent runs that investigate incidents and produce root-cause analysis",
+    "Automated fix PRs opened directly on your GitHub repositories",
+    "MCP (Model Context Protocol) server for AI assistant integration",
+    "Customizable dashboards with timeseries, trace table, and log table widgets",
+    "Threshold-based alerts on logs, traces, and custom metrics",
+    "Issue filter rules to reduce noise and scope investigations",
+    "Agent memory for persistent investigation context across runs",
+    "Webhooks for real-time notifications on agent run completion",
+    "Source map upload for symbolicated JavaScript stack traces",
+    "Slack and Linear integrations for incident notifications and ticket creation",
+    "AWS cloud connection for service map and Firehose metric ingestion",
+    "Self-hosted (open-source) and Superlog Cloud editions"
+  ],
+  "publicApiSurface": [
+    "POST /v1/traces — OTLP trace ingest",
+    "POST /v1/logs — OTLP log ingest",
+    "POST /v1/metrics — OTLP metric ingest",
+    "POST /aws/firehose/metrics — AWS Firehose metric ingest",
+    "POST /aws/firehose/logs — AWS Firehose log ingest",
+    "GET /api/org/projects — list projects",
+    "POST /api/org/projects — create project",
+    "GET /api/org/projects/:projectId — get project",
+    "PATCH /api/org/projects/:projectId — update project",
+    "GET /api/org/api-keys — list management API keys",
+    "POST /api/org/api-keys — mint management API key",
+    "DELETE /api/org/api-keys/:id — revoke API key",
+    "GET /api/projects/:projectId/alerts — list alerts",
+    "POST /api/projects/:projectId/alerts — create alert",
+    "PATCH /api/projects/:projectId/alerts/:id — update alert",
+    "DELETE /api/projects/:projectId/alerts/:id — delete alert",
+    "GET /api/projects/:projectId/ingest-filters — get ingest filters",
+    "PUT /api/projects/:projectId/ingest-filters — update ingest filters",
+    "GET /api/me/mcp-tokens — list personal access tokens",
+    "POST /api/me/mcp-tokens — mint personal access token",
+    "DELETE /api/me/mcp-tokens/:id — revoke personal access token",
+    "MCP tool: query_logs",
+    "MCP tool: query_traces",
+    "MCP tool: query_metrics",
+    "MCP tool: list_services",
+    "MCP tool: get_incident",
+    "MCP tool: search_incidents",
+    "MCP tool: list_dashboards",
+    "MCP tool: get_issue_filter / update_issue_filter / preview_issue_filter",
+    "MCP tool: create_agent_memory / list_agent_memories / update_agent_memory",
+    "MCP tool: get_project_context / set_project_context",
+    "Webhook event: agent_run.completed",
+    "Webhook header: Superlog-Signature (HMAC-SHA256)",
+    "Webhook header: Superlog-Event",
+    "Webhook header: Superlog-Delivery"
+  ]
+}

@@ -1,0 +1,108 @@
+---
+title: "Set Up Threshold Alerts on Logs, Traces, and Metrics"
+sidebarTitle: "Alerts"
+description: "Create Superlog alerts that fire when log error counts, span rates, or custom metrics cross a threshold. Get notified via Slack or webhooks."
+---
+
+Alerts evaluate your telemetry on a configurable interval and fire an episode whenever a measured value crosses the threshold you define. You can alert on log counts, trace span counts, or any custom metric — and group results by a resource attribute like `service.name` to get per-service firing events instead of a single rolled-up signal.
+
+## Alert fields
+
+When you create or update an alert you supply the following fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | A human-readable name for the alert (max 200 chars) |
+| `source` | `logs` \| `traces` \| `metric` | The telemetry signal to evaluate |
+| `aggregation` | `count` \| `sum` \| `avg` | How to aggregate the signal. Use `count` for logs/traces; `sum` or `avg` for metric sources |
+| `comparator` | `gt` \| `lt` | `gt` fires when the value is **above** the threshold; `lt` fires when it is **below** |
+| `threshold` | number | The numeric value the signal is compared against |
+| `metric_name` | string | Required when `source = metric` — the exact metric name as emitted by your SDK |
+| `filter` | object | Equality filters to narrow the data the alert evaluates (see below) |
+| `group_by` | string | A resource attribute to group by, e.g. `service.name` — enables per-group firing |
+| `group_mode` | `single` \| `per_group` | `single` rolls everything up into one value; `per_group` fires a separate episode per distinct group value |
+| `window_minutes` | integer | The rolling time window over which the signal is measured. Default `5`, max `1440` |
+| `evaluation_interval_seconds` | integer | How often the alert is evaluated. Min `15`, max `3600`. Default `60` |
+| `enabled` | boolean | Whether the alert is active. Defaults to `true` |
+
+### Filter fields
+
+The `filter` object lets you narrow which events the alert considers:
+
+- `resourceAttrs` — an array of `{ key, value }` pairs matched against OTel resource attributes
+- `service` — shorthand for `service.name`
+- `severity` — match a log severity level (e.g. `ERROR`)
+- `spanName` — match a specific span name
+- `statusCode` — match an OTel span status code
+- `minDurationMs` — only include spans longer than this duration in milliseconds
+
+### Validation rules
+
+- `aggregation` must be `count` when `source` is `logs` or `traces`
+- `aggregation` must be `sum` or `avg` when `source` is `metric`, and `metric_name` is required
+- `group_by` is required when `group_mode` is `per_group`
+
+## Creating alerts
+
+<Steps>
+  <Step title="Open the Alerts page">
+    Navigate to **Alerts** in the left sidebar. You'll see all existing alerts for the active project.
+  </Step>
+  <Step title="Click New Alert">
+    Fill in the form fields. Use the **Preview** button to evaluate your configuration against current data before saving — Superlog shows you whether the alert would be breaching right now.
+  </Step>
+  <Step title="Save the alert">
+    Click **Create**. The alert begins evaluating immediately at the interval you configured.
+  </Step>
+</Steps>
+
+You can also create alerts via the [MCP `create_alert` tool](/api/mcp-tools) or the REST API (see below).
+
+## Alert episodes
+
+Each time an alert starts firing, Superlog opens an **episode** — a record with a start time, peak observed value, and (when the condition clears) an end time. Episodes are numbered per alert so you can refer to "Episode #3 of the high-error-rate alert."
+
+When `group_mode = per_group`, each distinct group value (e.g. each service) gets its own episode. Episodes link to any incidents they trigger, making it easy to trace a Superlog incident back to its alerting condition.
+
+## Notification channels
+
+- **Slack** — when your workspace is connected to Superlog, fired alerts can post to a configured channel
+- **Webhooks** — combine alert episodes with the `agent_run.completed` event to push investigation results to any HTTP endpoint
+
+See [Webhooks](/configuration/webhooks) for details on the payload format and endpoint configuration.
+
+## REST API example
+
+You can create alerts programmatically. Authenticate with your management API key and `POST` to the alerts endpoint:
+
+```http
+POST /api/projects/:projectId/alerts
+Authorization: Bearer <your-api-key>
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "High error rate in orders service",
+  "source": "traces",
+  "aggregation": "count",
+  "comparator": "gt",
+  "threshold": 50,
+  "filter": {
+    "resourceAttrs": [{ "key": "service.name", "value": "orders" }]
+  },
+  "window_minutes": 5
+}
+```
+
+The response includes the full alert object with its assigned `id`.
+
+<Tip>
+  Use `group_mode: "per_group"` with `group_by: "service.name"` when you want a single alert definition to fire independently for each service rather than on their combined total.
+</Tip>
+
+<Note>
+  The `preview_alert` MCP tool evaluates a draft alert spec against current data without saving it — useful for iterating on threshold values before committing.
+</Note>
+
+For authentication details, see the [API overview](/api/overview). For the MCP tools reference, see [MCP tools](/api/mcp-tools).

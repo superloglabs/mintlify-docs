@@ -1,0 +1,98 @@
+---
+title: "Connect AWS to Superlog for Cloud Resource Visibility"
+sidebarTitle: "AWS"
+description: "Connect your AWS account to Superlog to ingest CloudWatch metrics via Firehose and visualize your cloud service topology on the service map."
+---
+
+Connecting AWS gives Superlog a live view of your cloud infrastructure. Once connected, the Overview page shows a service map of your AWS resources and their relationships, CloudWatch metrics flow in via Kinesis Firehose, and log data arrives through a CloudWatch Logs subscription filter — giving the AI agent the signals it needs to identify root causes in your cloud environment.
+
+## What the AWS integration provides
+
+<CardGroup cols={3}>
+  <Card title="Service map" icon="diagram-project">
+    A topology view of your AWS resources and the connections between them, visible on the Overview page once a connection is active.
+  </Card>
+  <Card title="CloudWatch metric ingest" icon="chart-line">
+    CloudWatch Metric Streams deliver metrics to Superlog via a Kinesis Firehose delivery stream pointed at the `/aws/firehose/metrics` endpoint.
+  </Card>
+  <Card title="CloudWatch Logs ingest" icon="scroll">
+    A CloudWatch Logs subscription filter delivers log data to Superlog via Firehose at the `/aws/firehose/logs` endpoint.
+  </Card>
+</CardGroup>
+
+## How to connect
+
+Superlog uses IAM role assumption (AWS STS) to access your account. You create an IAM role in your AWS account that trusts the Superlog AWS account, and Superlog assumes that role to discover and read your resources. Your long-term AWS credentials are never stored.
+
+<Steps>
+  <Step title="Open Cloud Connections in Settings">
+    Navigate to **Settings → Cloud Connections** in the Superlog dashboard, then click **Add AWS Connection**.
+  </Step>
+  <Step title="Choose your AWS region">
+    Select the AWS region where your primary resources live. Superlog uses this region when assuming your scrape role and when building Firehose stream configurations.
+  </Step>
+  <Step title="Deploy the CloudFormation stack">
+    Superlog provides a CloudFormation template that creates the required IAM scrape role, Kinesis Firehose delivery streams, and a CloudWatch Metric Stream. Click **Launch in AWS Console** to open the CloudFormation quick-create URL. Review the template and deploy it — the stack reports the created role ARN back to Superlog automatically via a custom resource.
+
+    <Note>
+      If your organisation does not permit CloudFormation auto-reporting, you can paste the IAM role ARN manually into the **Role ARN** field in Superlog after the stack finishes deploying.
+    </Note>
+  </Step>
+  <Step title="Verify the connection">
+    Back in Superlog, click **Verify Connection**. Superlog attempts to assume the role and lists a sample of your resources. A green status indicator confirms the connection is healthy.
+  </Step>
+</Steps>
+
+<Tip>
+  The combined one-step CloudFormation stack (`superlog-connect-stack.cfn.yaml`) provisions the scrape role, the metrics stream, and the logs stream in a single deployment. Use this when you want all three signals active from the start.
+</Tip>
+
+## Firehose ingest endpoints
+
+CloudWatch Metric Streams and Logs subscription filters send data to Superlog via Kinesis Firehose HTTP delivery. The CloudFormation template pre-fills these URLs for you, but they are listed here for reference when configuring streams manually.
+
+| Signal | Method | Path |
+|---|---|---|
+| CloudWatch Metric Streams | `POST` | `/aws/firehose/metrics` |
+| CloudWatch Logs subscription filter | `POST` | `/aws/firehose/logs` |
+
+<Info>
+  Firehose data is authenticated using the same project-level ingest key as your OTLP endpoint. The CloudFormation template configures the Firehose access key automatically. If you set up streams manually, copy the ingest key from **Settings → Ingest Keys** and set it as the Firehose HTTP endpoint access key.
+</Info>
+
+## The service map
+
+The service map appears on the **Overview** page and shows your AWS resources as nodes with edges representing the relationships and dependencies between them. The map is populated by the resource inventory scrape, which runs on a periodic schedule after the connection is established.
+
+<Note>
+  The service map only appears in the dashboard once at least one AWS cloud connection is active and the first inventory scrape has completed. Scrapes typically finish within a few minutes of a successful connection verification.
+</Note>
+
+The agent uses the service map during incident investigations to identify which services were involved in a failure and to trace dependencies that may have contributed to the root cause.
+
+## IAM permissions required
+
+The IAM scrape role created by the CloudFormation template is granted the following permissions:
+
+| Service | Actions | Purpose |
+|---|---|---|
+| `tag:GetResources` | `GetResources` | Page through all tagged resources in the account |
+| `cloudcontrol` | `GetResource` | Read per-resource configuration for enrichment |
+| `sts` | `AssumeRole` (trust policy) | Allow Superlog's account to assume the scrape role |
+
+Resource discovery is read-only. Superlog never modifies resources in your account.
+
+## Managing multiple AWS accounts
+
+You can add more than one AWS connection to a single Superlog project — for example, a production account and a staging account. Each connection has its own IAM role, region, and external ID. The service map merges resources from all active connections.
+
+To add a second account, return to **Settings → Cloud Connections** and click **Add AWS Connection** again.
+
+## Disconnecting AWS
+
+To remove a connection, click the **Delete** icon next to it in **Settings → Cloud Connections**. Superlog immediately stops assuming the role and removes the connection record. You can then delete the CloudFormation stack from your AWS account to remove the IAM role and Firehose resources.
+
+## Next steps
+
+- Ingest application traces and metrics alongside cloud data → [OTLP Ingest](/api/otlp-ingest)
+- Configure the agent to investigate cloud-related incidents → [Agent Settings](/configuration/agent-settings)

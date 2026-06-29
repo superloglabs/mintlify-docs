@@ -1,0 +1,106 @@
+---
+title: "Self-Host Superlog with Docker Compose"
+sidebarTitle: "Self-Hosting"
+description: "Run Superlog on your own infrastructure using Docker Compose. All services — API, proxy, worker, and databases — start with a single command."
+---
+
+The Superlog Community edition is a complete, self-contained observability stack you can run on any machine with Docker installed. A single `docker compose up` command starts PostgreSQL and ClickHouse; a single `pnpm dev` command starts the web app, API, OTLP ingest proxy, and background workers. All of your telemetry stays on your own infrastructure.
+
+## Prerequisites
+
+Before you begin, make sure you have the following installed:
+
+- **Node.js 20+** — [nodejs.org](https://nodejs.org)
+- **pnpm 9+** — `npm install -g pnpm`
+- **Docker** (with the Compose plugin) — [docker.com](https://www.docker.com/get-started)
+
+## Local service endpoints
+
+Once running, the stack exposes three local endpoints:
+
+| Service | URL | Purpose |
+|---|---|---|
+| Web app | `http://localhost:5173` | Dashboard, incidents, agent runs |
+| API | `http://localhost:4100` | REST API used by the web app |
+| OTLP intake | `http://localhost:4101` | Receive traces, logs, and metrics from your app |
+
+Point your application's OTLP exporter at `http://localhost:4101` to start sending data.
+
+## Setup
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the Superlog monorepo from GitHub:
+
+    ```bash
+    git clone https://github.com/superloglabs/superlog
+    cd superlog
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Superlog uses [pnpm workspaces](https://pnpm.io/workspaces). Install all dependencies from the repo root:
+
+    ```bash
+    pnpm install
+    ```
+  </Step>
+
+  <Step title="Start the databases">
+    Use Docker Compose to start PostgreSQL and ClickHouse in the background. The compose file also starts the OpenTelemetry Collector, which receives OTLP data and writes it to ClickHouse.
+
+    ```bash
+    docker compose up -d
+    ```
+
+    The following containers will start:
+
+    | Container | Image | Purpose |
+    |---|---|---|
+    | `postgres` | `postgres:16` | Application data, incidents, API keys |
+    | `clickhouse` | `clickhouse/clickhouse-server:26.1` | High-cardinality telemetry storage |
+    | `collector` | `otel/opentelemetry-collector-contrib:0.150.1` | OTLP ingest and ClickHouse export |
+
+    Wait for the health checks to pass before continuing. You can verify readiness with:
+
+    ```bash
+    docker compose ps
+    ```
+  </Step>
+
+  <Step title="Run database migrations">
+    Apply the Drizzle schema migrations to PostgreSQL:
+
+    ```bash
+    pnpm --filter @superlog/db db:migrate
+    ```
+
+    You only need to run this once on a fresh install, and again after pulling commits that include new migrations.
+  </Step>
+
+  <Step title="Start all services">
+    Start the web app, API, ingest proxy, and background workers together with a single command from the repo root:
+
+    ```bash
+    pnpm dev
+    ```
+
+    Open your browser at `http://localhost:5173`. The onboarding wizard will guide you through creating your first organisation and API key.
+  </Step>
+</Steps>
+
+## Editions
+
+<Note>
+  The Community edition you are running is **fully open-source** under the [Apache License 2.0](https://github.com/superloglabs/superlog/blob/main/LICENSE.md). You are free to use, modify, and distribute it for any purpose — including commercial use — without paying anything.
+
+  The default `community` agent runner records a local incident summary. For AI-powered root-cause analysis and automated fix PRs, connect a GitHub integration — see the tip below.
+</Note>
+
+<Info>
+  **Superlog Cloud** is available at [superlog.sh](https://superlog.sh) with a free tier and pay-as-you-go plans. Cloud provides managed infrastructure, automatic upgrades, and the full AI agent experience without any ops overhead.
+</Info>
+
+<Tip>
+  To enable AI agent investigations and automated fix PRs, connect Superlog to your GitHub repositories. See the [GitHub Integration guide](/integrations/github) for step-by-step instructions.
+</Tip>

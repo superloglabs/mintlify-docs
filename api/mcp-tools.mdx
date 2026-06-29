@@ -1,0 +1,806 @@
+---
+title: "Superlog MCP Tool Reference"
+sidebarTitle: "MCP Tools"
+description: "Complete reference for all Superlog MCP tools — query telemetry, search incidents, manage dashboards, configure agents, and set alerts."
+---
+
+Every tool registered in the Superlog MCP server is documented below. Tools are grouped by category. All tools default to the session's **active project** when you omit `project_id` — use `set_active_project` once at the start of a session to avoid repeating it on every call.
+
+<Tip>
+  Call `set_active_project` first in any new session. After that, you can omit `project_id` from every subsequent tool call.
+</Tip>
+
+<Note>
+  Telemetry-only tokens (scope `superlog:telemetry`) can only access the [Telemetry](#telemetry-tools) and [Project](#project-tools) tools. Incident, Dashboard, Alert, and Agent Config tools require a full-access token. See [MCP Overview](/api/mcp-overview) for token setup.
+</Note>
+
+---
+
+## Telemetry Tools
+
+### query\_logs
+
+Search OpenTelemetry log records stored in the active project.
+
+Error-level rows automatically include flattened `exception_type`, `exception_message`, and `exception_stacktrace` fields when the log carries an exception attribute.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Project to query. Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="range" type="object" optional>
+      Time window. Both fields accept an ISO-8601 timestamp or a ClickHouse time expression such as `now() - INTERVAL 1 HOUR`. Defaults to the last hour.
+      - `since` — start of the window (inclusive)
+      - `until` — end of the window (inclusive)
+    </ParamField>
+    <ParamField body="service" type="string" optional>
+      Filter by `service.name`. Exact match.
+    </ParamField>
+    <ParamField body="severity" type="string" optional>
+      Filter by severity text, e.g. `ERROR`, `WARN`, `INFO`. Case-insensitive.
+    </ParamField>
+    <ParamField body="search" type="string" optional>
+      Case-insensitive substring match on the log body.
+    </ParamField>
+    <ParamField body="resource_attrs" type="array" optional>
+      Filters on OTel resource attributes. Each entry is `{ key, value, op? }` where `op` is `eq` (default), `neq`, or `not_contains`.
+
+      Example: `[{ "key": "deployment.environment", "value": "prod" }]`
+    </ParamField>
+    <ParamField body="log_attrs" type="array" optional>
+      Equality filters on per-record log attributes (`LogAttributes`). Each entry is `{ key, value }`.
+
+      Example: `[{ "key": "event.name", "value": "auth.failure" }]`
+    </ParamField>
+    <ParamField body="limit" type="integer" optional>
+      Maximum rows to return. Range: 1–500. Default: `50`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### query\_traces
+
+Search OpenTelemetry spans stored in the active project.
+
+Spans with exception events automatically include flattened `exception_type`, `exception_message`, and `exception_stacktrace` fields.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Project to query. Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="range" type="object" optional>
+      Time window with `since` and `until`. Same format as `query_logs`.
+    </ParamField>
+    <ParamField body="service" type="string" optional>
+      Filter by `service.name`. Exact match.
+    </ParamField>
+    <ParamField body="span_name" type="string" optional>
+      Filter by span name. Exact match.
+    </ParamField>
+    <ParamField body="status_code" type="string" optional>
+      OTel span-level status: `STATUS_CODE_OK`, `STATUS_CODE_ERROR`, or `STATUS_CODE_UNSET`.
+
+      **Note:** By the OTel HTTP semantic conventions, only 5xx server responses automatically set `STATUS_CODE_ERROR` on a span — 4xx responses (including 410, 404, etc.) remain `STATUS_CODE_UNSET`. To filter spans by HTTP status code, use `span_attrs` with `key: "http.response.status_code"` instead.
+    </ParamField>
+    <ParamField body="min_duration_ms" type="number" optional>
+      Only return spans whose duration is at least this many milliseconds.
+    </ParamField>
+    <ParamField body="resource_attrs" type="array" optional>
+      Filters on resource attributes. Same format as `query_logs`.
+    </ParamField>
+    <ParamField body="span_attrs" type="array" optional>
+      Equality filters on per-span attributes (`SpanAttributes`). Each entry is `{ key, value }`.
+
+      Use this to filter by HTTP status code, route template, database statement, etc. — those live in `SpanAttributes`, not in the span's OTel `status_code`.
+
+      Example: `[{ "key": "http.response.status_code", "value": "410" }]`
+    </ParamField>
+    <ParamField body="limit" type="integer" optional>
+      Maximum rows to return. Range: 1–500. Default: `50`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### query\_metrics
+
+Fetch metric data points across gauge, sum, histogram, and summary tables.
+
+Gauge and sum points carry a scalar `value`. Histogram and summary points carry `count` and `sum` (plus `min` and `max` for histograms) instead, because they have no single scalar value.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Project to query. Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="metric_name" type="string" optional>
+      Filter by metric name. Exact match.
+    </ParamField>
+    <ParamField body="service" type="string" optional>
+      Filter by `service.name`. Exact match.
+    </ParamField>
+    <ParamField body="range" type="object" optional>
+      Time window with `since` and `until`. Same format as `query_logs`.
+    </ParamField>
+    <ParamField body="resource_attrs" type="array" optional>
+      Filters on resource attributes. Same format as `query_logs`.
+    </ParamField>
+    <ParamField body="limit" type="integer" optional>
+      Maximum rows to return. Range: 1–500. Default: `100`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### list\_services
+
+List distinct `service.name` values that have emitted telemetry in the given time window.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Project to query. Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="range" type="object" optional>
+      Time window with `since` and `until`. Defaults to the last hour.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Incident Tools
+
+<Note>
+  Incident tools require a full-access token. Telemetry-only tokens cannot access these tools.
+</Note>
+
+### get\_incident
+
+Fetch one incident by its UUID and everything needed to explain it.
+
+No `project_id` is required — the project is resolved from the incident record itself. The response includes the incident summary with the agent's findings (`root_cause_text`, `agent_summary`, `estimated_impact_text`), every linked issue with its stored telemetry sample (trace ID, span ID, stacktrace, attributes), and a pointer to the latest investigation run.
+
+To pull live telemetry, take a sample's `trace_id` and call `query_traces`, or filter `query_logs` / `query_traces` by the issue's service and exception type — passing the returned `project_id`.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="incident_id" type="uuid" required>
+      The UUID from the incident's URL: `https://superlog.sh/incidents/<id>`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### search\_incidents
+
+Search incidents in the active project, sorted by most recent activity first.
+
+By default, agent-classified noise (`status: autoresolved_noise`) is hidden. Pass `status: "all"` to include it, or `status: "autoresolved_noise"` to inspect only the noise pile.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Project to search. Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="status" type="string" optional>
+      Filter by incident status: `open`, `resolved`, `autoresolved_noise`, `merged`, or `all`. Omitting this hides auto-classified noise.
+    </ParamField>
+    <ParamField body="severity" type="string" optional>
+      Filter by assigned severity: `SEV-1`, `SEV-2`, or `SEV-3`.
+    </ParamField>
+    <ParamField body="service" type="string" optional>
+      Exact match on the incident's primary `service.name`.
+    </ParamField>
+    <ParamField body="query" type="string" optional>
+      Case-insensitive substring matched against the incident title and codename.
+    </ParamField>
+    <ParamField body="since" type="string" optional>
+      ISO-8601 timestamp. Only incidents with `last_seen >= since` are returned.
+    </ParamField>
+    <ParamField body="until" type="string" optional>
+      ISO-8601 timestamp. Only incidents with `last_seen <= until` are returned.
+    </ParamField>
+    <ParamField body="limit" type="integer" optional>
+      Maximum rows to return. Range: 1–200. Default: `50`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Project Tools
+
+### list\_projects
+
+List every project the authenticated user can access, across all of their organizations. The currently active project is marked with `active: true`.
+
+No parameters.
+
+---
+
+### get\_active\_project
+
+Return the project that all tools default to when `project_id` is omitted. Useful for confirming the active project at the start of a session.
+
+No parameters.
+
+---
+
+### set\_active\_project
+
+Change the default project for subsequent tool calls in this session. The new default persists for the lifetime of the access token.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" required>
+      The project to make active. Use `list_projects` to discover valid IDs.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Dashboard Tools
+
+<Note>
+  Dashboard tools require a full-access token.
+</Note>
+
+### list\_dashboards
+
+List all dashboards in the active project (or `project_id`).
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### get\_dashboard
+
+Fetch a dashboard with all of its widgets.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="id" type="uuid" required>
+      Dashboard ID from `list_dashboards`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### create\_dashboard
+
+Create a new dashboard, optionally seeding template variables.
+
+Dashboard template variables are named picklists that drive widget filters. Define a variable here and reference it in widget filter values with the token `$name` or `${name}` — for example, `{ "key": "deployment.environment", "value": "$env" }`. At view time, the dashboard shows a dropdown per variable and substitutes the selected option into every filter that references it.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="name" type="string" required>
+      Dashboard display name (max 120 characters). A URL slug is generated automatically.
+    </ParamField>
+    <ParamField body="variables" type="array" optional>
+      Template variable definitions. Each entry is `{ name, options[], defaultValue?, label?, attributeKey? }`. Variable names must start with a letter and contain only letters, digits, or underscores.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### add\_dashboard\_widget
+
+Append a widget to an existing dashboard.
+
+**Widget types:**
+
+| Type | Description | Default size |
+|---|---|---|
+| `timeseries_count` | Event count over time | w:6 h:4 (half-width) |
+| `timeseries_metric` | Metric value over time | w:6 h:4 (half-width) |
+| `trace_table` | Span search table | w:12 h:6 (full-width) |
+| `log_table` | Log search table | w:12 h:6 (full-width) |
+| `markdown` | Freeform markdown text | w:4 h:5 |
+
+Omit `layout` to use the standard size for the widget type. The grid is 12 columns wide (`x` is 0–11, `w` is 1–12).
+
+Filter values may reference dashboard template variables with `$name` or `${name}`.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="dashboard_id" type="uuid" required>
+      Dashboard to add the widget to.
+    </ParamField>
+    <ParamField body="type" type="string" required>
+      Widget type. One of: `timeseries_count`, `timeseries_metric`, `trace_table`, `log_table`, `markdown`.
+    </ParamField>
+    <ParamField body="title" type="string" required>
+      Widget display title (max 200 characters).
+    </ParamField>
+    <ParamField body="config" type="object" required>
+      Widget configuration object. Shape depends on `type`.
+    </ParamField>
+    <ParamField body="layout" type="object" optional>
+      Grid placement `{ x, y, w, h }`. Omit to use the standard size for the widget type.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### update\_dashboard\_widget
+
+Patch a widget's title, config, or layout. Provide only the fields you want to change.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="dashboard_id" type="uuid" required>
+      Dashboard that contains the widget.
+    </ParamField>
+    <ParamField body="widget_id" type="uuid" required>
+      Widget to update.
+    </ParamField>
+    <ParamField body="title" type="string" optional>
+      New display title (max 200 characters).
+    </ParamField>
+    <ParamField body="config" type="object" optional>
+      Replacement widget configuration.
+    </ParamField>
+    <ParamField body="layout" type="object" optional>
+      Replacement grid placement `{ x, y, w, h }`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### delete\_dashboard\_widget
+
+Remove a widget from a dashboard.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="dashboard_id" type="uuid" required>
+      Dashboard that contains the widget.
+    </ParamField>
+    <ParamField body="widget_id" type="uuid" required>
+      Widget to remove.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### set\_dashboard\_variables
+
+Replace a dashboard's entire template-variable list. This **overwrites** the existing list — call `get_dashboard` first and edit the returned variables if you want to keep any existing ones.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="id" type="uuid" required>
+      Dashboard to update.
+    </ParamField>
+    <ParamField body="variables" type="array" required>
+      Full set of template variable definitions. Same format as `create_dashboard`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### delete\_dashboard
+
+Delete a dashboard and all of its widgets. This action is permanent.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="id" type="uuid" required>
+      Dashboard to delete.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Alert Tools
+
+<Note>
+  Alert tools require a full-access token.
+</Note>
+
+### list\_alerts
+
+List all alerts in the active project.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### get\_alert
+
+Fetch a single alert plus its 50 most recent firings.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="id" type="uuid" required>
+      Alert ID from `list_alerts`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### create\_alert
+
+Create a new alert rule.
+
+For `logs` and `traces` sources, `aggregation` must be `count`. For `metric` source, `aggregation` must be `sum` or `avg` and `metric_name` is required.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="name" type="string" required>
+      Display name for the alert (max 200 characters).
+    </ParamField>
+    <ParamField body="source" type="string" required>
+      Telemetry source: `logs`, `traces`, or `metric`.
+    </ParamField>
+    <ParamField body="aggregation" type="string" required>
+      How to aggregate the data: `count` (logs/traces) or `sum`/`avg` (metric).
+    </ParamField>
+    <ParamField body="comparator" type="string" required>
+      Comparison direction: `gt` fires when value > threshold; `lt` fires when value < threshold.
+    </ParamField>
+    <ParamField body="threshold" type="number" required>
+      The numeric threshold to compare against.
+    </ParamField>
+    <ParamField body="metric_name" type="string" optional>
+      Required when `source` is `metric`.
+    </ParamField>
+    <ParamField body="filter" type="object" optional>
+      Equality filters that narrow the data the alert evaluates.
+    </ParamField>
+    <ParamField body="group_by" type="string" optional>
+      Resource attribute to group by, e.g. `service.name`. When set, use `group_mode` to control how groups fire.
+    </ParamField>
+    <ParamField body="group_mode" type="string" optional>
+      `single` rolls all groups up into one evaluation; `per_group` fires independently per distinct `group_by` value.
+    </ParamField>
+    <ParamField body="window_minutes" type="integer" optional>
+      Evaluation window in minutes. Range: 1–1440. Default: `5`.
+    </ParamField>
+    <ParamField body="enabled" type="boolean" optional>
+      Whether the alert is active. Defaults to `true`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### update\_alert
+
+Patch an existing alert. Provide only the fields you want to change. Validation runs on the merged result.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="id" type="uuid" required>
+      Alert to update.
+    </ParamField>
+    <ParamField body="name" type="string" optional>
+      New display name.
+    </ParamField>
+    <ParamField body="source" type="string" optional>
+      `logs`, `traces`, or `metric`.
+    </ParamField>
+    <ParamField body="aggregation" type="string" optional>
+      `count`, `sum`, or `avg`.
+    </ParamField>
+    <ParamField body="comparator" type="string" optional>
+      `gt` or `lt`.
+    </ParamField>
+    <ParamField body="threshold" type="number" optional>
+      New threshold value.
+    </ParamField>
+    <ParamField body="enabled" type="boolean" optional>
+      Enable or disable the alert.
+    </ParamField>
+    <ParamField body="metric_name" type="string" optional>
+      Required when changing `source` to `metric`.
+    </ParamField>
+    <ParamField body="filter" type="object" optional>
+      Replacement filter definition.
+    </ParamField>
+    <ParamField body="group_by" type="string" optional>
+      Replacement group-by attribute.
+    </ParamField>
+    <ParamField body="group_mode" type="string" optional>
+      `single` or `per_group`.
+    </ParamField>
+    <ParamField body="window_minutes" type="integer" optional>
+      Replacement evaluation window in minutes.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### delete\_alert
+
+Permanently delete an alert.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="id" type="uuid" required>
+      Alert to delete.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### preview\_alert
+
+Evaluate a draft alert specification against current data without saving it. Returns whether the alert would breach right now.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    Same as `create_alert`. No `id` is required.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### test\_alert
+
+Re-evaluate a saved alert against current data and return the result.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="id" type="uuid" required>
+      Alert to test.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Agent Config Tools
+
+These tools let you tune how Superlog's investigation agent works for a project — its issue filter, project context, and durable memories.
+
+<Note>
+  Agent config tools require a full-access token.
+</Note>
+
+### get\_issue\_filter
+
+Read the project's issue filter: per-kind include/exclude attribute clauses that decide which ERROR events become issues and incidents. Exclude clauses win. A non-empty include list means an event must match at least one include clause to become an issue.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### update\_issue\_filter
+
+Update the project's issue filter. Each bucket you provide **replaces** that bucket; omit a bucket to leave it unchanged; pass `[]` to clear it.
+
+Call `get_issue_filter` first if you want to add to existing rules rather than overwrite them. Call `preview_issue_filter` before saving to verify the effect.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="includeLogs" type="array" optional>
+      Log events must match at least one of these clauses (if non-empty) to become an issue. Each clause is `{ key, value }`.
+    </ParamField>
+    <ParamField body="includeSpans" type="array" optional>
+      Span events must match at least one of these clauses (if non-empty) to become an issue.
+    </ParamField>
+    <ParamField body="excludeLogs" type="array" optional>
+      Log events matching any of these clauses are dropped and never become issues.
+    </ParamField>
+    <ParamField body="excludeSpans" type="array" optional>
+      Span events matching any of these clauses are dropped and never become issues.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### preview\_issue\_filter
+
+Preview which recent ERROR events (last 24 hours) would still become issues under a candidate filter, **without saving**. The buckets you pass are merged over the project's current filter — same semantics as `update_issue_filter`. Omit all buckets to preview the currently saved filter.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="includeLogs" type="array" optional>
+      Candidate include clauses for logs.
+    </ParamField>
+    <ParamField body="includeSpans" type="array" optional>
+      Candidate include clauses for spans.
+    </ParamField>
+    <ParamField body="excludeLogs" type="array" optional>
+      Candidate exclude clauses for logs.
+    </ParamField>
+    <ParamField body="excludeSpans" type="array" optional>
+      Candidate exclude clauses for spans.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### get\_project\_context
+
+Read the project's freeform context — the human-written description of the system (architecture, conventions, key services) that the investigation agent reads on every run.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### set\_project\_context
+
+Overwrite the project's freeform context (max 8000 characters; longer input is truncated).
+
+This **replaces** the whole field. Call `get_project_context` first and edit the returned text if you want to preserve existing content. Use this for durable, system-level facts that apply to every investigation; for narrower learnings, prefer `create_agent_memory`.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="context" type="string" required>
+      The full context text. Replaces the existing value entirely.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### create\_agent\_memory
+
+Store a durable, reusable learning so future investigations inherit it. Record a memory whenever you uncover something worth remembering across investigations — a root-cause pattern, an infra or architecture fact, a domain term, or a correction about how to investigate.
+
+Keep the title a short handle and the body the specific, reusable fact — not a one-off incident narrative. Check `list_agent_memories` first to avoid creating duplicates.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="kind" type="string" required>
+      Memory category:
+      - `feedback` — a correction or preference for how the agent should behave
+      - `terminology` — a domain term or acronym
+      - `infra` — how the system is deployed or operates
+      - `project` — general project facts
+    </ParamField>
+    <ParamField body="title" type="string" required>
+      Short handle for the memory (max 200 characters).
+    </ParamField>
+    <ParamField body="body" type="string" required>
+      The specific, reusable fact or instruction (max 4000 characters).
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### list\_agent\_memories
+
+List all active (and archived) memories stored for the project.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### update\_agent\_memory
+
+Patch a stored memory. Provide only the fields you want to change.
+
+Set `status: "archived"` to retire a memory without deleting it — archived memories stop being injected into investigations but remain visible in `list_agent_memories`.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="id" type="uuid" required>
+      Memory ID from `list_agent_memories`.
+    </ParamField>
+    <ParamField body="kind" type="string" optional>
+      New category: `feedback`, `terminology`, `infra`, or `project`.
+    </ParamField>
+    <ParamField body="title" type="string" optional>
+      New title (max 200 characters).
+    </ParamField>
+    <ParamField body="body" type="string" optional>
+      New body text (max 4000 characters).
+    </ParamField>
+    <ParamField body="status" type="string" optional>
+      `active` or `archived`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Related
+
+- [MCP Overview](/api/mcp-overview) — authentication setup, client configuration, and token management

@@ -1,47 +1,128 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with Superlog in Minutes"
+sidebarTitle: "Quickstart"
+description: "Learn how to send your first OpenTelemetry data to Superlog and trigger your first AI agent investigation in three steps."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+This guide walks you through the fastest path to a working Superlog setup: create an account or spin up a local instance, send your first OpenTelemetry trace, and watch an AI agent investigate your first incident. The whole process takes under five minutes.
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+<Tip>
+  Superlog has a **demo mode** that lets you explore sample incidents, agent runs, and dashboards with pre-loaded data — no instrumentation required. If you want to get a feel for the product before touching your codebase, choose "Explore with sample data" during onboarding on [superlog.sh](https://superlog.sh).
+</Tip>
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Sign up or self-host">
+    Choose the option that fits your setup.
+
+    **Superlog Cloud** — sign up for a free account at [superlog.sh](https://superlog.sh). No credit card required. You get a hosted ingest endpoint and a free tier that covers most small projects.
+
+    **Self-hosted (local)** — run the full stack on your machine using Docker. See the [Self-Hosting guide](/self-hosting) for the complete walkthrough, or use the quick commands below:
 
     ```bash
-    npm install your-package
+    git clone https://github.com/superloglabs/superlog
+    cd superlog
+    pnpm install
+    docker compose up -d
+    pnpm --filter @superlog/db db:migrate
+    pnpm dev
+    ```
+
+    Once running, the web app is available at `http://localhost:5173`.
+  </Step>
+
+  <Step title="Get your ingest API key">
+    Superlog authenticates ingest requests with an API key attached as a bearer token.
+
+    1. Open the dashboard (Cloud: [superlog.sh](https://superlog.sh) — Local: `http://localhost:5173`)
+    2. Navigate to **Settings → API Keys**
+    3. Click **Create key**, give it a name like `my-app`, and copy the value
+
+    <Note>
+      API keys are **write-only** — they can ingest events but cannot read data from the dashboard. It is safe to use them in server-side environment variables or pass them directly to your coding agent during setup.
+    </Note>
+  </Step>
+
+  <Step title="Send telemetry">
+    Point your application's OTLP exporter at Superlog and include your API key as a bearer token.
+
+    **Ingest endpoints:**
+
+    | Environment | Endpoint |
+    |---|---|
+    | Superlog Cloud | `https://ingest.superlog.sh/v1/traces` |
+    | Local (self-hosted) | `http://localhost:4101/v1/traces` |
+
+    Install the OpenTelemetry HTTP exporter for Node.js:
+
+    <CodeGroup>
+      ```bash npm
+      npm install @opentelemetry/exporter-trace-otlp-http
+      ```
+      ```bash pnpm
+      pnpm add @opentelemetry/exporter-trace-otlp-http
+      ```
+      ```bash yarn
+      yarn add @opentelemetry/exporter-trace-otlp-http
+      ```
+    </CodeGroup>
+
+    Configure the exporter to send traces to Superlog:
+
+    ```typescript
+    import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+
+    const exporter = new OTLPTraceExporter({
+      // Replace with https://ingest.superlog.sh/v1/traces for Superlog Cloud
+      url: "http://localhost:4101/v1/traces",
+      headers: {
+        Authorization: "Bearer <your-api-key>",
+      },
+    });
+    ```
+
+    You can also configure the exporter using environment variables:
+
+    ```bash
+    OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4101
+    OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <your-api-key>
     ```
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
+  <Step title="Install via coding agent (recommended)">
+    The fastest way to instrument an existing project is to hand the task to your coding agent. Copy the prompt below and paste it into Cursor, Claude Code, Codex, or any other agent. The agent runs the Superlog install skill end-to-end — it adds the SDK, instruments your code, and opens a PR.
+
     ```
+    Run npx skills add superloglabs/skills --all and use the skills to install Superlog in this project
+    ```
+
+    When you sign up on [superlog.sh](https://superlog.sh), the onboarding wizard generates a version of this prompt that already includes your API key so the agent can configure everything in one shot.
+
+    <Tip>
+      You can rotate your API key at any time from **Settings → API Keys** in the dashboard. The key is write-only, so it is safe to include in the agent prompt without exposing read access to your telemetry data.
+    </Tip>
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
-    ```bash
-    your-cli start
-    ```
+  <Step title="Explore the dashboard">
+    Once your application sends its first trace, the Superlog dashboard updates in real time.
+
+    | What you'll see | Where to find it |
+    |---|---|
+    | Incoming traces, logs, and metrics | **Explorer** tab |
+    | Errors grouped into incidents | **Incidents** tab |
+    | AI agent investigation results | Click any incident → **Agent Runs** |
+    | Fix PRs opened by the agent | GitHub, linked from the agent run |
+
+    Open the dashboard at `http://localhost:5173` (local) or [superlog.sh](https://superlog.sh) (Cloud) and navigate to the **Incidents** tab. Your first incident should appear within a few seconds of the first error arriving.
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## Next steps
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+<CardGroup cols={2}>
+  <Card title="Incidents" icon="triangle-exclamation" href="/concepts/incidents">
+    Learn how Superlog fingerprints and groups errors into incidents.
+  </Card>
+  <Card title="GitHub Integration" icon="github" href="/integrations/github">
+    Connect GitHub so the AI agent can inspect your code and open fix PRs.
+  </Card>
+</CardGroup>

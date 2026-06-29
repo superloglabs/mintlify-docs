@@ -1,0 +1,205 @@
+---
+title: "Read Telemetry via the Superlog Management API"
+sidebarTitle: "Telemetry Read"
+description: "Query logs, traces, and metrics stored in Superlog using the REST telemetry read endpoints. Authenticated with management API keys."
+---
+
+Superlog exposes REST endpoints that let you read back the telemetry your services have ingested. You can retrieve a full trace by ID, search and filter log records, and query metric data points — all authenticated with the same management key you use for the rest of the API.
+
+All telemetry read endpoints are under `/api/v1/projects/:projectId` and require an `Authorization: Bearer sl_management_…` header. Results are returned newest-first unless otherwise noted.
+
+<Info>
+  For richer querying with attribute filters, cross-signal correlation, and AI-assisted root-cause analysis, use the [MCP server tools](/api/mcp-tools) (`query_logs`, `query_traces`, `query_metrics`) instead of these REST endpoints.
+</Info>
+
+---
+
+## Get a trace
+
+`GET /api/v1/projects/:projectId/traces/:traceId`
+
+Fetches all spans and correlated logs for a single trace by its hex trace ID. Returns `404` if no spans are found for the given trace ID in the project.
+
+```bash
+curl https://api.superlog.sh/api/v1/projects/<projectId>/traces/4bf92f3577b34da6a3ce929d0e0e4736 \
+  -H "Authorization: Bearer sl_management_xxxx"
+```
+
+**Path parameters**
+
+<ParamField path="projectId" type="string (UUID)" required>
+  The project to query.
+</ParamField>
+
+<ParamField path="traceId" type="string" required>
+  Hex-encoded OTLP trace ID. 1–64 hexadecimal characters. Both upper- and lowercase are accepted.
+</ParamField>
+
+**Response**
+
+```json
+{
+  "spans": [
+    {
+      "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+      "spanId": "00f067aa0ba902b7",
+      "parentSpanId": null,
+      "name": "GET /api/users",
+      "serviceName": "user-service",
+      "startTimeUnixNano": "1748880000000000000",
+      "durationNano": "12500000",
+      "statusCode": "STATUS_CODE_OK",
+      "attributes": { "http.method": "GET", "http.status_code": 200 }
+    }
+  ]
+}
+```
+
+---
+
+## Query logs
+
+`GET /api/v1/projects/:projectId/logs`
+
+Returns log records that match the supplied filters, ordered from newest to oldest. All query parameters are optional — omitting all of them returns the most recent 100 log records for the project.
+
+```bash
+curl "https://api.superlog.sh/api/v1/projects/<projectId>/logs?severity=ERROR&limit=25" \
+  -H "Authorization: Bearer sl_management_xxxx"
+```
+
+**Query parameters**
+
+<ParamField query="trace_id" type="string">
+  Filter to log records correlated with a specific trace. 1–64 hex characters.
+</ParamField>
+
+<ParamField query="service" type="string">
+  Filter by `service.name` resource attribute (e.g., `user-service`). Up to 200 characters.
+</ParamField>
+
+<ParamField query="severity" type="string">
+  Filter by severity text (e.g., `ERROR`, `WARN`, `INFO`). Case-sensitive; use the exact OTel severity text your SDK emits. Up to 40 characters.
+</ParamField>
+
+<ParamField query="search" type="string">
+  Case-insensitive substring match against the log body. Up to 500 characters.
+</ParamField>
+
+<ParamField query="from" type="string">
+  Start of the time range (inclusive). Accepts an ISO 8601 timestamp (e.g., `2026-05-25T19:00:00Z`) or a ClickHouse relative expression (e.g., `now() - INTERVAL 1 HOUR`). Defaults to 1 hour ago.
+</ParamField>
+
+<ParamField query="to" type="string">
+  End of the time range (inclusive). Same format as `from`. Defaults to now.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="100">
+  Maximum number of records to return. 1–500.
+</ParamField>
+
+**Response**
+
+```json
+{
+  "items": [
+    {
+      "timestamp": "2025-06-01T08:45:00.123000000Z",
+      "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+      "spanId": "00f067aa0ba902b7",
+      "severityText": "ERROR",
+      "severityNumber": 17,
+      "body": "failed to connect to database: connection refused",
+      "serviceName": "user-service",
+      "attributes": { "db.system": "postgresql" }
+    }
+  ]
+}
+```
+
+<ResponseField name="items" type="array">
+  Matching log records, newest first.
+</ResponseField>
+
+---
+
+## Query metrics
+
+`GET /api/v1/projects/:projectId/metrics`
+
+Returns metric data points matching the given filters. Superlog queries across sum, gauge, and histogram tables and returns a unified list. The `name` parameter is required.
+
+```bash
+curl "https://api.superlog.sh/api/v1/projects/<projectId>/metrics?name=http.server.duration&service=api-gateway" \
+  -H "Authorization: Bearer sl_management_xxxx"
+```
+
+**Query parameters**
+
+<ParamField query="name" type="string" required>
+  Metric name to query (e.g., `http.server.duration`, `system.cpu.utilization`). Up to 200 characters.
+</ParamField>
+
+<ParamField query="service" type="string">
+  Filter by `service.name` resource attribute. Up to 200 characters.
+</ParamField>
+
+<ParamField query="from" type="string">
+  Start of the time range. ISO 8601 timestamp or ClickHouse relative expression. Defaults to 1 hour ago.
+</ParamField>
+
+<ParamField query="to" type="string">
+  End of the time range. Same format as `from`. Defaults to now.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="100">
+  Maximum number of data points to return. 1–500.
+</ParamField>
+
+**Response**
+
+```json
+{
+  "items": [
+    {
+      "metricName": "http.server.duration",
+      "serviceName": "api-gateway",
+      "startTimeUnixNano": "1748880000000000000",
+      "value": 42.7,
+      "unit": "ms",
+      "attributes": { "http.method": "POST", "http.route": "/api/orders" }
+    }
+  ]
+}
+```
+
+<ResponseField name="items" type="array">
+  Matching metric data points. Shape varies slightly by metric type (sum, gauge, or histogram).
+</ResponseField>
+
+---
+
+## Time range formats
+
+Both `from` and `to` accept two formats:
+
+| Format | Example |
+|---|---|
+| ISO 8601 timestamp | `2026-05-25T19:00:00Z` |
+| ClickHouse relative expression | `now() - INTERVAL 6 HOUR` |
+
+Use ISO 8601 timestamps when you need a precise, reproducible range (e.g., querying a specific incident window). Use relative expressions for rolling windows in dashboards or monitoring scripts.
+
+---
+
+## Error codes
+
+| Status | Cause |
+|---|---|
+| `400` | Invalid query parameter — check `traceId` format or `limit` range |
+| `401` | Missing or invalid management key |
+| `404` | Project not found in your org, or trace ID returned no spans |
+
+<Tip>
+  The [MCP server tools](/api/mcp-tools) support richer attribute-level filtering (e.g., `http.status_code = 500`) and can correlate signals across traces, logs, and metrics in a single query. Prefer them for interactive investigation and for any query that goes beyond the parameters above.
+</Tip>

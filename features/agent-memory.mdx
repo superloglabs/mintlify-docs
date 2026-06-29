@@ -1,0 +1,111 @@
+---
+title: "Teach Superlog Agents with Persistent Memory"
+sidebarTitle: "Agent Memory"
+description: "Agent memories are reusable facts you store in Superlog that are injected into every AI investigation, improving accuracy over time."
+---
+
+Every time the Superlog AI agent investigates an incident, it starts fresh — unless you've taught it things worth remembering. Agent memory lets you store facts that are injected into every investigation automatically: domain terminology your team uses, infrastructure details the agent needs to interpret stack traces, or corrections to past reasoning mistakes. Over time, these memories make investigations progressively more accurate.
+
+## Memory kinds
+
+Each memory has a **kind** that describes the type of fact it captures:
+
+<CardGroup cols={2}>
+  <Card title="feedback" icon="comment-dots">
+    A correction or preference for how the agent should work. Use this when the agent drew the wrong conclusion or used a pattern you want to change.
+
+    **Example:** "Don't suggest retries for the order-processor service — it's intentionally fire-and-forget. Missing messages are handled by the upstream queue's dead-letter policy."
+  </Card>
+  <Card title="terminology" icon="book">
+    A domain term or acronym that the agent might misinterpret without context.
+
+    **Example:** "TXN refers to our internal transaction ID, not a database transaction. Always look for it in the `txn_id` span attribute, not in `db.statement`."
+  </Card>
+  <Card title="infra" icon="server">
+    How your system is deployed and runs. Helps the agent give concrete, actionable recommendations instead of generic advice.
+
+    **Example:** "The orders service runs on ECS Fargate in us-east-1. Its database is RDS Postgres (db.t3.medium). There is no connection pooling — each task opens its own pool via pg."
+  </Card>
+  <Card title="project" icon="folder">
+    General project or team facts that span multiple services or aren't naturally infra or terminology.
+
+    **Example:** "This project is the B2B API. All tenants are identified by `tenant_id` in resource attributes. SLA breaches above 500ms affect enterprise tier only."
+  </Card>
+</CardGroup>
+
+## Adding memories
+
+### In the dashboard
+
+<Steps>
+  <Step title="Open Agent Memories">
+    Navigate to **Settings → Agent Memories** in your project.
+  </Step>
+  <Step title="Click Add Memory">
+    Choose a kind, write a short title, and enter the body text. Click **Save**.
+  </Step>
+</Steps>
+
+### Via MCP
+
+The `create_agent_memory` tool accepts `kind`, `title`, and `body`:
+
+```json
+{
+  "kind": "infra",
+  "title": "Orders service — ECS + RDS setup",
+  "body": "orders service runs on ECS Fargate in us-east-1. Database is RDS Postgres db.t3.medium in the same VPC. No PgBouncer — each task opens its own connection pool via the `pg` npm package with a pool size of 5."
+}
+```
+
+<Tip>
+  Before creating a new memory, call `list_agent_memories` to check whether a similar fact already exists. Duplicate memories don't cause errors, but they waste context window space in investigations.
+</Tip>
+
+## Memory fields
+
+| Field | Limit | Description |
+|---|---|---|
+| `title` | Short, descriptive | A handle you use to identify the memory in lists and updates |
+| `body` | Max 4,000 chars | The specific, reusable fact or instruction injected into investigations |
+| `kind` | One of the four kinds above | Used to organize and prioritize memories |
+| `status` | `active` \| `archived` | Archived memories are not injected into investigations |
+
+Keep the `body` **specific and reusable** — write it as if you're briefing a new engineer who will investigate every future incident, not as a narrative about one past incident.
+
+## Project context
+
+For high-level system architecture that applies to every investigation, use **project context** instead of individual memories. Project context is a single freeform text block (max 8,000 characters) that's always injected first, before individual memories.
+
+Use it for:
+- System architecture diagrams in text form
+- Key services and their responsibilities
+- Deployment regions and topology
+- Critical third-party dependencies
+
+You can read and write project context via the MCP tools `get_project_context` and `set_project_context`, or in the dashboard at **Settings → Project Context**.
+
+<Warning>
+  `set_project_context` **replaces** the entire context field. Call `get_project_context` first and edit the returned text if you want to preserve existing content.
+</Warning>
+
+## Archiving stale memories
+
+When a memory is no longer accurate — for example, you've migrated away from the infrastructure it describes — archive it instead of deleting it. Archived memories stop being injected into investigations but are retained for your records.
+
+Via MCP:
+
+```json
+{
+  "id": "<memory-uuid>",
+  "status": "archived"
+}
+```
+
+To permanently remove a memory, use the `delete_agent_memory` tool.
+
+## Scope
+
+<Note>
+  Memories are scoped to your **organization** and are shared across all projects within it. A memory you add in the `orders` project is also available to the `payments` project in the same org. Use the `kind` and `title` fields to make it clear which system a memory applies to.
+</Note>

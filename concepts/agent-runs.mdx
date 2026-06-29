@@ -1,0 +1,96 @@
+---
+title: "How Superlog Agent Runs Investigate Incidents"
+sidebarTitle: "Agent Runs"
+description: "Agent runs are AI-powered investigations of your incidents. Each run analyzes telemetry, finds root causes, and may open a fix PR on GitHub."
+---
+
+Every time Superlog opens a new incident, it can automatically kick off an **agent run** — an AI-powered investigation that reads your telemetry, inspects the relevant source code, identifies the root cause, and, when appropriate, opens a pull request with a fix. You get actionable answers within minutes of an error appearing in production.
+
+## How a run is triggered
+
+An agent run starts as soon as a new incident is created, provided your project has a GitHub repository connected. If GitHub is not yet connected, you can start an investigation manually from the incident detail page by clicking **Investigate**.
+
+<Info>
+You can also trigger follow-up runs by replying in the incident's Slack thread, leaving a comment on the agent's PR, or submitting feedback on a completed run. Superlog tracks these as follow-up triggers (`slack_reply`, `pr_comment`, `feedback`) rather than fresh investigations.
+</Info>
+
+## What the agent does
+
+The agent works through a structured investigation:
+
+<Steps>
+  <Step title="Read telemetry samples">
+    The agent reads the error events grouped into the incident — stacktraces, span attributes, log bodies, resource attributes, and any stored trace or log samples linked to each issue.
+  </Step>
+  <Step title="Query live telemetry">
+    Using the trace IDs and service names from the samples, the agent queries live traces and logs to understand the error's frequency, timeline, and blast radius.
+  </Step>
+  <Step title="Inspect source code">
+    With a GitHub repository connected, the agent reads the files and functions implicated by the stacktrace. It checks the current code state to determine whether the bug is still present.
+  </Step>
+  <Step title="Identify root cause">
+    The agent synthesizes its findings into a root cause explanation with a numeric confidence score (0–10), an estimated impact description, and an overall confidence level (`high`, `medium`, or `low`).
+  </Step>
+  <Step title="Open a fix PR or classify as noise">
+    If the agent finds a code-level fix, it opens a pull request against your repository. If it determines the incident is noise or already resolved, it classifies it accordingly and auto-resolves the incident.
+  </Step>
+</Steps>
+
+## Agent run states
+
+| State | Meaning |
+|---|---|
+| `running` | The investigation is in progress |
+| `complete` | The run finished and produced a result |
+| `failed` | The run encountered an unrecoverable error (see `failureReason`) |
+
+## Result fields
+
+When a run completes, its result contains the following fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `summary` | string | A plain-English explanation of what the agent found |
+| `rootCause.text` | string | Concise description of the root cause |
+| `rootCause.confidence` | number (0–10) | How confident the agent is — 10 means verbatim code/trace/log evidence; 0 means speculation |
+| `rootCauseConfidence` | `high` \| `medium` \| `low` | Bucketed form of the numeric confidence |
+| `estimatedImpact.text` | string | Description of the impact on users or systems |
+| `estimatedImpact.confidence` | number (0–10) | Confidence in the impact estimate |
+| `severity` | `SEV-1` \| `SEV-2` \| `SEV-3` | The agent's suggested severity for the incident |
+
+<Note>
+The numeric `confidence` field uses a 0–10 scale where **10** means the agent found direct, verbatim evidence (a line of code, a matching stacktrace, a clear log message), and **0** means the finding is largely speculative. Treat scores below 4 as hypotheses to verify, not conclusions.
+</Note>
+
+## Pull request outcomes
+
+When the agent finds a fix, it opens a PR against the repository it identified as the most relevant. The PR record includes:
+
+| Field | Values | Description |
+|---|---|---|
+| `pr.openStatus` | `pending` \| `opened` | Whether the PR has been delivered to GitHub |
+| `pr.url` | URL | Direct link to the PR on GitHub |
+| `pr.baseBranch` | string | The branch the PR targets (defaults to your repo's default branch) |
+| `pr.validationPassed` | boolean | Whether the agent's local validation checks passed before opening |
+
+If the PR cannot be opened (for example, due to a GitHub permissions error), the run records a `pr_open_failed` failure reason and you can retry delivery from the incident detail page.
+
+### Noise and resolution classifications
+
+Sometimes the agent concludes that no PR is needed:
+
+- **`noiseClassification`** — the agent determined the incident is not worth acting on. The incident status moves to `autoresolved_noise` and the classification reason is stored (e.g. `cosmetic_log_only`, `expected_third_party`).
+- **`resolutionClassification`** — the agent determined the issue is already fixed in the current code (e.g. `fixed_in_current_code`, `transient_condition_cleared`). The incident status moves to `resolved` with the reason code `agent_classification`.
+
+## Resuming an investigation
+
+Agent runs can be resumed when new signals arrive — for example, when a new error signature joins an already-investigated incident, or when a team member replies in the Slack thread with additional context. Each resume increments the run's `resumeCount` counter.
+
+The `cumulativeRuntimeMinutes` field tracks the total AI compute time accumulated across all segments of a run, including resumes. You can use this to understand the investigation cost for complex incidents.
+
+## Related pages
+
+- [Incidents](/concepts/incidents) — how incidents are created and resolved
+- [GitHub Integration](/integrations/github) — connect your repositories so the agent can open PRs
+- [Agent Memory](/features/agent-memory) — persistent context the agent carries across incidents
+- [Agent Settings](/configuration/agent-settings) — configure PR automation and automerge policies

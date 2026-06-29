@@ -1,0 +1,85 @@
+---
+title: "Connect Linear to Track Superlog Incidents as Tickets"
+sidebarTitle: "Linear"
+description: "Link Superlog to Linear so the AI agent automatically creates issues for new incidents. Track fixes from investigation to ticket to merged PR."
+---
+
+Connecting Linear closes the loop between incident detection and engineering execution. When the Superlog AI agent completes an investigation, it automatically creates a Linear issue that captures the root cause summary and links directly to the fix PR. Your team sees the full trail — from the first alert through to a merged fix — without manually copying information between tools.
+
+## What the Linear integration does
+
+<CardGroup cols={2}>
+  <Card title="Automatic issue creation" icon="ticket">
+    After each agent run, Superlog creates a Linear issue containing the root cause summary, severity, and a link back to the incident.
+  </Card>
+  <Card title="Fix PR linking" icon="link">
+    When the agent opens a pull request on GitHub, the Linear issue is updated with the PR URL so your team can track progress in one place.
+  </Card>
+  <Card title="Incident detail view" icon="eye">
+    The Linear ticket identifier (for example, `ENG-1234`) appears in the Superlog incident detail view so you can jump to Linear in one click.
+  </Card>
+  <Card title="Webhook payload" icon="webhook">
+    Linear ticket data is included in the `linearTickets[]` array of the outbound webhook payload for downstream automation.
+  </Card>
+</CardGroup>
+
+## How to connect
+
+<Steps>
+  <Step title="Open Settings in the Superlog dashboard">
+    Navigate to **Settings** in the left sidebar of your project.
+  </Step>
+  <Step title="Start the Linear OAuth flow">
+    Click **Connect Linear**. You will be redirected to Linear to authorise Superlog for your workspace.
+  </Step>
+  <Step title="Approve the requested scopes">
+    Superlog requests the following OAuth scopes:
+
+    | Scope | Purpose |
+    |---|---|
+    | `read` | Read workspace data, teams, and existing issues |
+    | `write` | Update issues and attach metadata |
+    | `issues:create` | Create new issues for completed agent runs |
+    | `comments:create` | Post investigation summaries as issue comments |
+  </Step>
+  <Step title="Return to Superlog">
+    Linear redirects you back to the dashboard. The Settings page confirms that Linear is connected.
+  </Step>
+  <Step title="Select a team and project (optional)">
+    Under **Settings → Linear**, choose which Linear team new issues should be created in. If you leave this unset, Superlog uses your workspace's default team.
+  </Step>
+</Steps>
+
+## What a created Linear issue contains
+
+When the agent completes a run and creates a Linear issue, the issue body includes:
+
+- A plain-language root cause summary written by the agent
+- The incident ID and a direct link to the incident in Superlog
+- The severity level assigned to the incident
+- A link to the fix PR if one was opened on GitHub
+
+The issue is created with the `actor: "app"` flag set, so it appears as created by the Superlog integration rather than by an individual user.
+
+<Note>
+  Linear issues are created after the agent run completes, not when the incident is first detected. If you want an immediate alert, combine the Linear integration with the Slack integration — Slack fires on incident creation while Linear fires on agent run completion.
+</Note>
+
+## Ticket identifier in Superlog
+
+Once the Linear issue is created, its identifier (for example, `ENG-1234`) appears in the **incident detail view** inside Superlog. Clicking it takes you directly to the Linear issue.
+
+## Linear data in webhooks
+
+If you have outbound webhooks configured, the `linearTickets` array in the webhook payload contains the created ticket details for each agent run. You can use this to build custom automations — for example, routing high-severity tickets to a dedicated Linear project or notifying a Slack channel beyond the default one.
+
+See [Webhooks](/configuration/webhooks) for the full payload schema, including the `linearTickets[]` field.
+
+## Disconnecting Linear
+
+To disconnect, click **Disconnect Linear** in **Settings → Linear**. This revokes Superlog's access token and removes the Linear webhook that was registered in your workspace. Existing Linear issues created by Superlog are not deleted.
+
+## Next steps
+
+- Understand agent run lifecycle and outputs → [Agent Runs](/concepts/agent-runs)
+- Configure outbound webhooks to consume `linearTickets[]` data → [Webhooks](/configuration/webhooks)

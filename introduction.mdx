@@ -1,0 +1,63 @@
+---
+title: "Superlog: Open-Source AI-Powered Observability Platform"
+sidebarTitle: "Introduction"
+description: "Superlog is an open-source agentic telemetry system that ingests OTLP data, groups errors into incidents, and uses AI agents to find root causes and open fix PRs."
+---
+
+Superlog is an open-core observability workspace built for teams that want more than dashboards. It ingests OpenTelemetry traces, logs, and metrics, groups noisy signals into incidents, and runs AI agents that trace errors back to their root cause — then open a pull request to fix them. You get a local-first product surface for debugging production systems, with the option to let automation do the heavy lifting.
+
+## How Superlog fits your workflow
+
+Most observability tools stop at surfacing problems. Superlog goes further: it connects your telemetry pipeline to your source code and your pull request workflow. When something breaks in production, you see an incident in the Superlog dashboard, an agent starts an investigation, and a fix PR lands in your repository — all without you having to triage a wall of log lines.
+
+Superlog integrates with the tools you already use. It speaks OTLP natively, so any OpenTelemetry-instrumented application can start sending data with a one-line configuration change. GitHub integration gives agents read access to your code and write access to open PRs. The MCP server brings live incident context into AI coding assistants like Claude or Cursor.
+
+## Editions
+
+Superlog is available in two editions.
+
+**Community (self-hosted, open-source)** — the complete platform, free to run on your own infrastructure. The Community edition includes the web app, API, OTLP ingest proxy, background workers, Postgres schema, ClickHouse-backed telemetry queries, and the default community agent runner that records a local incident summary. Licensed under Apache 2.0 and developed in the open at [github.com/superloglabs/superlog](https://github.com/superloglabs/superlog).
+
+**Superlog Cloud (hosted)** — a fully managed version of Superlog with a free tier and pay-as-you-go plans. Cloud handles infrastructure, scaling, and upgrades so you can focus on building. Sign up at [superlog.sh](https://superlog.sh).
+
+## Key capabilities
+
+| Capability | Description |
+|---|---|
+| **OTLP ingest** | Receive traces, logs, and metrics from any OpenTelemetry SDK or collector |
+| **Incident grouping** | Fingerprint and cluster related errors into actionable incidents |
+| **AI agent investigations** | Agents inspect telemetry and repository context to find root causes |
+| **GitHub PR automation** | Agents open fix PRs directly in your connected repositories |
+| **MCP server** | Expose incident context to AI coding assistants via the Model Context Protocol |
+| **Dashboards** | Visualise telemetry trends and incident history in the web app |
+| **Alerts** | Get notified when new incidents are detected or investigations complete |
+
+## Repository layout
+
+The Superlog monorepo is organised by concern, making it straightforward to understand and contribute to:
+
+- `apps/web` — Vite/React frontend
+- `apps/api` — HTTP API
+- `apps/proxy` — OTLP ingest proxy
+- `apps/worker` — background workers and agent orchestration
+- `packages/db` — Drizzle schema and migrations
+- `packages/fingerprint` — telemetry fingerprinting helpers
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Send your first telemetry and trigger an AI investigation in minutes.
+  </Card>
+  <Card title="Incidents" icon="triangle-exclamation" href="/concepts/incidents">
+    Understand how Superlog groups signals into incidents.
+  </Card>
+  <Card title="Agent Runs" icon="robot" href="/concepts/agent-runs">
+    Learn how AI agents investigate incidents and propose fixes.
+  </Card>
+  <Card title="MCP Server" icon="plug" href="/features/mcp">
+    Bring live incident context into your coding agent.
+  </Card>
+</CardGroup>
+
+<Note>
+  Superlog is licensed under the [Apache License 2.0](https://github.com/superloglabs/superlog/blob/main/LICENSE.md). You are free to use, modify, and distribute the Community edition for any purpose.
+</Note>

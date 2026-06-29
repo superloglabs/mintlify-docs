@@ -1,0 +1,77 @@
+---
+title: "Projects and Organizations in Superlog"
+sidebarTitle: "Projects & Orgs"
+description: "Organize your telemetry with Superlog projects and organizations. Each project gets its own ingest keys, incidents, and agent configuration."
+---
+
+Superlog uses a two-level hierarchy to keep your telemetry organized: **organizations** hold your team and integrations, while **projects** hold your telemetry signals, incidents, and agent configuration. Understanding how these two concepts relate helps you structure your observability setup correctly from the start.
+
+## Organizations
+
+An organization is the top-level container in Superlog. It represents your company or team, and everything in Superlog belongs to an org.
+
+At the org level you:
+
+- **Invite team members** — everyone who needs access to your incidents and dashboards gets a seat in the org
+- **Connect integrations** — GitHub, Slack, and Linear are all connected at the org level, making them available across all projects
+- **Manage management API keys** — `sl_management_` prefixed keys let you automate project provisioning, query telemetry, and administer the org via the REST API
+
+<Warning>
+Management keys carry broad access across your entire organization. Treat them like root credentials: store them in a secrets manager, rotate them regularly, and never commit them to source control.
+</Warning>
+
+## Projects
+
+A project is a logical grouping for telemetry. The most common patterns are one project per app, one per service, or one per environment (e.g. `production`, `staging`). Each project is completely isolated: its incidents, dashboards, alerts, and agent configuration are independent.
+
+When you create a project, Superlog automatically mints an ingest API key for it so you can start sending data immediately.
+
+### Project slugs
+
+Every project has a **slug** — a short, URL-safe identifier used in API paths and the dashboard URL. Slug rules:
+
+- Lowercase alphanumeric characters and dashes only
+- Must start and end with an alphanumeric character
+- Maximum 40 characters
+
+```
+✅  my-api
+✅  payments-service-prod
+✅  frontend2
+❌  My_Service   (uppercase and underscores not allowed)
+❌  -frontend    (cannot start with a dash)
+```
+
+## API keys
+
+Superlog uses two distinct key types, each scoped to a different level of the hierarchy.
+
+<CardGroup cols={2}>
+  <Card title="Ingest keys" icon="key">
+    **Prefix:** `sl_public_`
+
+    Scoped to a single project. Use these as the `Authorization: Bearer` header when sending OTLP traces, logs, and metrics to the ingest endpoint. Each project can have multiple ingest keys — create one per service or environment for fine-grained rotation.
+  </Card>
+  <Card title="Management keys" icon="shield-keyhole">
+    **Prefix:** `sl_management_`
+
+    Scoped to an organization. Use these to call the Superlog management API: create and update projects, mint ingest keys, query telemetry, and search incidents. Management keys work across all projects in your org.
+  </Card>
+</CardGroup>
+
+<Info>
+Ingest keys are shown in plain text only once — at creation time. If you lose a key, revoke it and mint a new one. The `key_prefix` field (the first few characters) is always safe to display and is useful for identifying keys in logs or audit trails.
+</Info>
+
+## Working with multiple projects
+
+Superlog is designed to scale across many projects from a single org:
+
+- **Dashboard** — use the project switcher in the top navigation to move between projects
+- **MCP server** — your MCP session has an active project context; pass an explicit `project_id` to `search_incidents` and other tools to query a different project without changing your session
+- **Management API** — all project endpoints accept a `projectId` path parameter, so you can script cross-project operations with a single management key
+
+## Related pages
+
+- [Ingest Keys](/configuration/ingest-keys) — create, rotate, and revoke ingest API keys
+- [Projects API](/api/projects) — programmatically manage projects with the REST API

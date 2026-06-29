@@ -1,0 +1,110 @@
+---
+title: "Authenticate with the Superlog Management API"
+sidebarTitle: "Authentication"
+description: "Superlog uses Bearer token authentication. Use management keys for the REST API and ingest keys for OTLP data. Learn how to create and use each."
+---
+
+Superlog authenticates every API request with a Bearer token passed in the `Authorization` header. There are two distinct key types — each is accepted only in its correct context, and sending the wrong type returns a descriptive `401` error.
+
+## Key types
+
+### Management keys (`sl_management_…`)
+
+Management keys are org-scoped credentials used to call the REST management API at `/api/v1/*`. A single management key can access every project in your org.
+
+- Created in the Superlog dashboard (see steps below).
+- Cannot be minted via the API itself — dashboard access is required.
+- Shown in plaintext exactly once at creation time.
+
+### Ingest keys (`sl_live_…`)
+
+Ingest keys are project-scoped credentials used to push OTLP telemetry to Superlog. They authenticate the standard OTLP endpoints:
+
+- `POST /v1/traces`
+- `POST /v1/logs`
+- `POST /v1/metrics`
+
+You can create an ingest key automatically when you create a project (the default), or mint additional ones at any time via the [API Keys](/api/api-keys) endpoints or the dashboard.
+
+<Info>
+  Ingest keys are **not** accepted on `/api/v1/*` management endpoints (and vice-versa). If you accidentally send the wrong key type, the API returns `401` with the message `wrong credential type`.
+</Info>
+
+---
+
+## Getting a management key
+
+<Steps>
+  <Step title="Sign in to the Superlog dashboard">
+    Open [app.superlog.sh](https://app.superlog.sh) (or your self-hosted host) and sign in.
+  </Step>
+  <Step title="Open Settings → API Keys">
+    In the left sidebar, navigate to **Settings**, then select the **API Keys** tab.
+  </Step>
+  <Step title="Create a new management key">
+    Under **Management Keys**, click **New Management Key**. Give it a descriptive name — for example, `CI/CD provisioning` or `Terraform`.
+  </Step>
+  <Step title="Copy the key immediately">
+    The dashboard displays the full key (`sl_management_…`) only once. Copy it and store it in a secrets manager or environment variable right away.
+  </Step>
+</Steps>
+
+---
+
+## Using a management key in requests
+
+Pass the key as a Bearer token in the `Authorization` header on every request:
+
+```bash
+curl https://api.superlog.sh/api/v1/projects \
+  -H "Authorization: Bearer sl_management_xxxx"
+```
+
+In application code, read the key from an environment variable rather than hard-coding it:
+
+```ts
+const response = await fetch("https://api.superlog.sh/api/v1/projects", {
+  headers: {
+    Authorization: `Bearer ${process.env.SUPERLOG_MANAGEMENT_KEY}`,
+  },
+});
+```
+
+---
+
+## Personal Access Tokens (PATs) for the MCP server
+
+If you are connecting an AI assistant via the Superlog MCP server, you need a **Personal Access Token** rather than a management key. PATs are user-scoped and bound to a single project.
+
+<Steps>
+  <Step title="Open Settings → API Tokens">
+    In the dashboard sidebar, go to **Settings** → **API Tokens**.
+  </Step>
+  <Step title="Mint a token">
+    Click **New Token**, choose the target project, set an expiry (or choose *Never*), and give the token a name.
+  </Step>
+  <Step title="Copy and configure">
+    Copy the token and add it to your MCP client configuration. Like management keys, PATs are shown in plaintext only once.
+  </Step>
+</Steps>
+
+For full MCP setup instructions, see the [MCP Server](/api/mcp-tools) reference.
+
+---
+
+## Error responses
+
+| Status | Cause |
+|---|---|
+| `401 Unauthorized` | Token is missing, malformed, the wrong type, or has been revoked |
+| `403 Forbidden` | Token is valid but does not have access to the specific resource |
+
+```json
+{ "error": "wrong credential type: /api/v1/* requires an sl_management_* key" }
+```
+
+---
+
+<Warning>
+  Never commit API keys to source control. Store them as environment variables or in a secrets manager (AWS Secrets Manager, HashiCorp Vault, GitHub Actions secrets, etc.). Rotate any key that may have been exposed immediately via the dashboard.
+</Warning>

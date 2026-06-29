@@ -1,0 +1,96 @@
+---
+title: "Connect GitHub to Superlog for Automated Fix PRs"
+sidebarTitle: "GitHub"
+description: "Connect your GitHub repositories to Superlog so the AI agent can read source code, open fix PRs, and auto-merge when checks pass."
+---
+
+Connecting GitHub gives the Superlog AI agent direct access to your source code. Once connected, the agent can inspect the files involved in an incident, push a fix branch, and open a pull request — all without you leaving your workflow. GitHub is optional: incidents are still detected and investigated without it, but the agent won't be able to open PRs until a connection is active.
+
+## Why connect GitHub
+
+When the agent identifies a root cause it needs two things to open a fix PR: read access to your repository so it can understand the affected code, and write access to push a branch and open the pull request. The GitHub App integration provides both in a single OAuth flow.
+
+<CardGroup cols={2}>
+  <Card title="Code inspection" icon="magnifying-glass">
+    The agent reads your repository contents to understand the context around an incident before proposing a fix.
+  </Card>
+  <Card title="Automated fix PRs" icon="code-pull-request">
+    When the agent finds a root cause, it pushes a branch and opens a pull request directly against your chosen base branch.
+  </Card>
+  <Card title="Auto-merge support" icon="check">
+    Configure Superlog to merge the PR automatically once all your CI checks pass, or immediately, or leave it for a human to review.
+  </Card>
+  <Card title="PR comments" icon="comment">
+    The agent posts progress updates and investigation summaries as comments on the pull request and on related issues.
+  </Card>
+</CardGroup>
+
+## How to connect
+
+<Steps>
+  <Step title="Open Settings in the Superlog dashboard">
+    Navigate to **Settings** in the left sidebar of your Superlog project.
+  </Step>
+  <Step title="Start the GitHub OAuth flow">
+    Click **Connect GitHub**. You will be redirected to GitHub to install the Superlog GitHub App on your organisation or personal account.
+  </Step>
+  <Step title="Select repositories">
+    Choose which repositories to grant the App access to. You can start with one repository and add more later from the GitHub App settings page.
+  </Step>
+  <Step title="Return to Superlog">
+    GitHub redirects you back to the Superlog dashboard. The Settings page will confirm that GitHub is connected.
+  </Step>
+  <Step title="Grant repos to your project">
+    Under **Settings → GitHub Repos**, select which of the installed repositories should be available to this specific project.
+  </Step>
+</Steps>
+
+## Permissions the App requests
+
+Superlog requests the minimum permissions needed to read code and manage pull requests. No organisation-level or admin permissions are required.
+
+| Permission | Access | Purpose |
+|---|---|---|
+| **Contents** | Read & write | Read repo files; push the fix branch |
+| **Pull requests** | Read & write | Open, update, and merge PRs |
+| **Issues** | Read & write | Post PR and issue comments |
+| **Metadata** | Read-only | Required for all GitHub Apps (auto-selected by GitHub) |
+
+<Note>
+  Superlog never requests organisation administration, member management, or secrets access. If GitHub prompts for additional permissions beyond those listed above, do not approve — contact support.
+</Note>
+
+## PR settings
+
+After connecting GitHub, you can tune how the agent handles the pull requests it creates. These settings live under **Settings → Agent** and are described in full on the [Agent Settings](/configuration/agent-settings) page.
+
+| Setting | Options | Default |
+|---|---|---|
+| `automerge_fix_prs` | `never` \| `when_checks_pass` \| `immediately` | `never` |
+| `automerge_method` | `squash` \| `merge` \| `rebase` | `squash` |
+| `pr_base_branch` | Any branch name | Repository default branch |
+
+<Tip>
+  Set `automerge_fix_prs` to `when_checks_pass` to let Superlog merge fixes automatically once your CI suite is green, while still giving your existing branch protection rules the final word.
+</Tip>
+
+## Refresh access
+
+The **Connect GitHub** flow also authorises a commit-author identity so that Superlog's commits appear under a recognisable name. If this token expires or you need to update the author identity, click **Refresh access** in Settings. This re-runs the commit-author OAuth flow without removing the App installation.
+
+<Info>
+  If you see `?gh=error` after returning from GitHub during a refresh, check that both callback URLs are registered on your GitHub App: `…/github/install/callback` and `…/github/author/callback`. Both URLs must be registered on the GitHub App settings page.
+</Info>
+
+## Disconnecting or changing repositories
+
+To revoke access entirely, uninstall the Superlog GitHub App from your GitHub organisation settings (**Settings → Applications → Installed GitHub Apps**). To add or remove specific repositories without disconnecting, adjust them on the same GitHub App installation page and then click **Refresh access** in Superlog to sync the updated repo list.
+
+<Note>
+  Removing the GitHub connection does not delete any incidents, agent runs, or historical PR data in Superlog.
+</Note>
+
+## Next steps
+
+- Configure auto-merge and PR behaviour → [Agent Settings](/configuration/agent-settings)
+- Set up Slack notifications so your team hears about fix PRs the moment they open → [Connect Slack](/integrations/slack)

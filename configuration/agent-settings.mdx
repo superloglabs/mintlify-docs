@@ -1,0 +1,122 @@
+---
+title: "Configure AI Agent PR Automation in Superlog"
+sidebarTitle: "Agent Settings"
+description: "Control how Superlog's AI agent opens and merges fix PRs. Set auto-merge policy, merge strategy, and target branch per project."
+---
+
+When the Superlog AI agent finishes investigating an incident and produces a fix, it opens a pull request on your behalf. Agent automation settings give you precise control over what happens next — from leaving the PR for your team to review, all the way to merging it automatically the moment CI passes.
+
+All settings in this section are per-project. Changes take effect on the next agent run; they do not retroactively affect open PRs.
+
+## Configuring settings
+
+You can adjust agent automation settings in two ways:
+
+- **Dashboard:** Navigate to **Settings → Automation** inside the project.
+- **Management API:** Send a `PATCH` request to `/api/v1/projects/<projectId>` with the fields you want to change. Only the fields you include are written — absent fields are left unchanged.
+
+```bash
+curl -X PATCH https://<host>/api/v1/projects/<projectId> \
+  -H "Authorization: Bearer sl_management_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"automerge_fix_prs": "when_checks_pass", "automerge_method": "squash"}'
+```
+
+## Auto-merge policy (`automerge_fix_prs`)
+
+This setting controls whether the agent merges the PR it opens, and when.
+
+| Value | Behaviour |
+|-------|-----------|
+| `never` *(default)* | The agent opens the PR but never merges it. Your team reviews and merges manually. |
+| `when_checks_pass` | Uses GitHub's native auto-merge feature. The PR merges automatically once all required status checks pass. |
+| `immediately` | Calls the GitHub merge API right after opening the PR, without waiting for any CI checks. |
+
+<Warning>
+  `immediately` is a powerful setting. If your CI is flaky or your repo has no required status checks, Superlog will merge the fix PR before any tests have run. Enable it only when you have high confidence in your pipeline's reliability.
+</Warning>
+
+<Note>
+  `when_checks_pass` delegates the merge decision to GitHub's auto-merge mechanism. Make sure your repository has at least one required status check configured, or the PR may merge as soon as it is opened.
+</Note>
+
+## Merge strategy (`automerge_method`)
+
+When `automerge_fix_prs` is set to `when_checks_pass` or `immediately`, this setting controls the Git merge strategy used.
+
+| Value | Behaviour |
+|-------|-----------|
+| `squash` *(default)* | Squashes all commits on the branch into a single commit on the base branch. Keeps history clean. |
+| `merge` | Creates a merge commit. Preserves the full branch history. |
+| `rebase` | Rebases the branch commits onto the base branch tip. Produces a linear history without a merge commit. |
+
+If `automerge_fix_prs` is `never`, this field has no effect but is still stored and will apply if you later enable auto-merge.
+
+## Target branch (`pr_base_branch`)
+
+By default, the agent targets the repository's default branch (usually `main` or `master`). Set `pr_base_branch` to override this per project.
+
+```bash
+curl -X PATCH https://<host>/api/v1/projects/<projectId> \
+  -H "Authorization: Bearer sl_management_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"pr_base_branch": "develop"}'
+```
+
+Set `pr_base_branch` to `null` or an empty string to revert to the repository's default branch.
+
+<Tip>
+  If your team uses a `develop` or `staging` branch as the integration target, set `pr_base_branch` to that branch name. This prevents the agent from opening PRs that bypass your normal review flow.
+</Tip>
+
+## Project context
+
+Project context is a free-text description of your architecture that the agent reads before every investigation. Use it to tell the agent about your stack, key services, inter-service dependencies, coding conventions, or anything else that would help it understand a failure faster.
+
+- **Maximum length:** 8,000 characters
+- **Set from the dashboard:** **Settings → Project Context**
+- **Set via the MCP tool:** use the `set_project_context` tool in your MCP-enabled environment
+- **Set via the API:** include `project_context` in a `PATCH /api/v1/projects/<projectId>` request
+
+```bash
+curl -X PATCH https://<host>/api/v1/projects/<projectId> \
+  -H "Authorization: Bearer sl_management_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_context": "Monorepo. Main services: orders (Node/Express), payments (Go), fulfillment (Python). All communicate via gRPC. DB is Postgres 15 with read replicas in us-east-1 and eu-west-1."
+  }'
+```
+
+<Tip>
+  Keep project context focused on facts that stay stable over weeks — service names, languages, key libraries, database layout, and on-call conventions. Avoid dynamic information like current incidents or recent deploys, which go stale quickly.
+</Tip>
+
+For advanced guidance on shaping agent behaviour with domain knowledge, see [Agent Memory](/features/agent-memory).
+
+## Full example: enabling squash auto-merge
+
+The following call sets `when_checks_pass` auto-merge with a squash strategy on a project, targeting the `main` branch:
+
+```bash
+curl -X PATCH https://<host>/api/v1/projects/<projectId> \
+  -H "Authorization: Bearer sl_management_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "automerge_fix_prs": "when_checks_pass",
+    "automerge_method": "squash",
+    "pr_base_branch": "main"
+  }'
+```
+
+The response returns the full project object with all current settings reflected.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Connect GitHub" href="/integrations/github">
+    Set up the GitHub integration so the agent can open and merge PRs on your repositories.
+  </Card>
+  <Card title="Agent Memory" href="/features/agent-memory">
+    Add long-lived domain knowledge to guide the agent's investigations.
+  </Card>
+</CardGroup>

@@ -1,0 +1,187 @@
+---
+title: "API Keys: Mint and Revoke Ingest Keys"
+sidebarTitle: "API Keys"
+description: "Use the Superlog management API to programmatically mint and revoke project ingest keys for automated provisioning and key rotation."
+---
+
+Ingest keys (`sl_live_…`) are the credentials your services use to push OTLP telemetry — traces, logs, and metrics — to Superlog. You can manage them from the dashboard or automate the entire lifecycle with the management API.
+
+All endpoints on this page require a management key (`sl_management_…`). See [Authentication](/api/authentication) for setup instructions.
+
+**Base path:** `/api/v1/projects/:projectId/api-keys`
+
+<Info>
+  Each ingest key is scoped to a single project. A key created for project A cannot send data to project B.
+</Info>
+
+---
+
+## List ingest keys
+
+`GET /api/v1/projects/:projectId/api-keys`
+
+Returns all ingest keys for the project — both active and revoked — ordered most-recently-created first.
+
+```bash
+curl https://api.superlog.sh/api/v1/projects/<projectId>/api-keys \
+  -H "Authorization: Bearer sl_management_xxxx"
+```
+
+**Response**
+
+```json
+{
+  "api_keys": [
+    {
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "Production ingest key",
+      "key_prefix": "sl_live_ab",
+      "last_used_at": "2025-06-01T08:45:00.000Z",
+      "revoked_at": null,
+      "created_at": "2025-01-15T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+<ResponseField name="api_keys" type="array">
+  All ingest keys for the project.
+</ResponseField>
+
+<ResponseField name="api_keys[].id" type="string (UUID)">
+  Unique identifier for the key. Use this as `:id` when revoking.
+</ResponseField>
+
+<ResponseField name="api_keys[].name" type="string">
+  Human-readable label assigned at creation.
+</ResponseField>
+
+<ResponseField name="api_keys[].key_prefix" type="string">
+  The first few characters of the key (safe to display and log). Use this to identify a key without exposing the full secret.
+</ResponseField>
+
+<ResponseField name="api_keys[].last_used_at" type="string (ISO 8601) | null">
+  When the key last authenticated a successful ingest request. `null` if the key has never been used.
+</ResponseField>
+
+<ResponseField name="api_keys[].revoked_at" type="string (ISO 8601) | null">
+  When the key was revoked. `null` if the key is still active.
+</ResponseField>
+
+<ResponseField name="api_keys[].created_at" type="string (ISO 8601)">
+  When the key was minted.
+</ResponseField>
+
+---
+
+## Mint an ingest key
+
+`POST /api/v1/projects/:projectId/api-keys`
+
+Mints a new ingest key for the project. The full plaintext key is returned in the response and **cannot be retrieved again** — store it immediately.
+
+```bash
+curl -X POST https://api.superlog.sh/api/v1/projects/<projectId>/api-keys \
+  -H "Authorization: Bearer sl_management_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Production ingest key"}'
+```
+
+**Request body**
+
+<ParamField body="name" type="string">
+  A label for the key. Up to 120 characters. Optional — defaults to `"API key"` if omitted or blank.
+</ParamField>
+
+**Response**
+
+```json
+{
+  "api_key": {
+    "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "name": "Production ingest key",
+    "key_prefix": "sl_live_ab",
+    "plaintext": "sl_live_abcdefghijklmnopqrstuvwxyz"
+  }
+}
+```
+
+<ResponseField name="api_key.id" type="string (UUID)">
+  Unique identifier. Use this to revoke the key later.
+</ResponseField>
+
+<ResponseField name="api_key.name" type="string">
+  The name you provided (or the default `"API key"`).
+</ResponseField>
+
+<ResponseField name="api_key.key_prefix" type="string">
+  Stable prefix of the key, safe to store and display.
+</ResponseField>
+
+<ResponseField name="api_key.plaintext" type="string">
+  The full ingest key value. Pass this as `Authorization: Bearer` when sending OTLP data. **Shown once only.**
+</ResponseField>
+
+<Warning>
+  The `plaintext` value is returned exactly once. It is not stored in Superlog and cannot be recovered after this response. Copy it to a secrets manager or environment variable before discarding the response.
+</Warning>
+
+---
+
+## Revoke an ingest key
+
+`DELETE /api/v1/projects/:projectId/api-keys/:id`
+
+Immediately revokes an ingest key. Any services still using the revoked key will receive `401` errors on their next ingest request. The revocation is permanent and cannot be undone.
+
+```bash
+curl -X DELETE \
+  https://api.superlog.sh/api/v1/projects/<projectId>/api-keys/<keyId> \
+  -H "Authorization: Bearer sl_management_xxxx"
+```
+
+**Path parameters**
+
+<ParamField path="projectId" type="string (UUID)" required>
+  The project the key belongs to.
+</ParamField>
+
+<ParamField path="id" type="string (UUID)" required>
+  The key's UUID, as returned by the list or mint endpoints.
+</ParamField>
+
+**Response**
+
+```json
+{ "ok": true }
+```
+
+Returns `404` if no active key with the given UUID exists in the project.
+
+---
+
+## Key rotation workflow
+
+Use the following pattern to rotate an ingest key without dropping telemetry:
+
+<Steps>
+  <Step title="Mint a replacement key">
+    Call `POST /api/v1/projects/:projectId/api-keys` with a descriptive name. Store the plaintext immediately.
+  </Step>
+  <Step title="Deploy the new key">
+    Update your service configuration to use the new key. Verify that telemetry is flowing in the Superlog dashboard.
+  </Step>
+  <Step title="Revoke the old key">
+    Call `DELETE /api/v1/projects/:projectId/api-keys/:id` with the old key's UUID once all services have migrated.
+  </Step>
+</Steps>
+
+---
+
+## Management keys
+
+Management keys (`sl_management_…`) — the credentials used to call this API — are not manageable via the REST API. They are created and revoked exclusively through the Superlog dashboard under **Settings → API Keys → Management Keys**.
+
+<Tip>
+  Give each management key a clear name that describes its consumer, such as `Terraform module` or `GitHub Actions`. This makes it easy to audit usage and revoke a specific key without disrupting others.
+</Tip>

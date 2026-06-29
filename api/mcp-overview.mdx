@@ -1,0 +1,178 @@
+---
+title: "Connect AI Assistants to Superlog via MCP"
+sidebarTitle: "MCP Overview"
+description: "Superlog's MCP server lets Claude, Cursor, and other AI tools query your telemetry and incidents. Authenticate with a personal access token or OAuth."
+---
+
+Superlog implements the [Model Context Protocol](https://modelcontextprotocol.io) (MCP) over streamable HTTP. Once connected, AI assistants like Claude or Cursor can query your logs, traces, metrics, and incidents in real time — and take actions such as creating dashboards, setting alerts, and tuning investigation filters.
+
+**MCP endpoint:** `https://<your-superlog-host>/mcp`
+
+---
+
+## Authentication
+
+Two authentication methods are supported.
+
+<CardGroup cols={2}>
+  <Card title="Personal Access Token" icon="key">
+    Mint a long-lived token in the dashboard and pass it in the `Authorization` header. Best for local tools and scripts.
+  </Card>
+  <Card title="OAuth 2.0" icon="lock">
+    MCP clients that support OAuth can use the standard authorization code flow. Best for multi-user deployments and managed tools.
+  </Card>
+</CardGroup>
+
+### Personal Access Token (PAT)
+
+PATs are prefixed `sl_pat_...` and are created in **Settings → API Tokens**. Pass one in the `Authorization` header of every MCP request:
+
+```
+Authorization: Bearer sl_pat_xxxx
+```
+
+#### Creating a PAT
+
+<Steps>
+  <Step title="Open API Tokens">
+    Go to **Settings → API Tokens** in the Superlog dashboard.
+  </Step>
+  <Step title="Click New Token">
+    Click the **New Token** button in the top-right corner.
+  </Step>
+  <Step title="Fill in the details">
+    Enter a descriptive name, select the project this token defaults to, and choose an expiry: **30 days**, **90 days**, **1 year**, or **never**.
+  </Step>
+  <Step title="Copy the token">
+    Copy the full token value now — it is shown **only once** and cannot be recovered. If you lose it, revoke it and create a new one.
+  </Step>
+</Steps>
+
+### OAuth 2.0
+
+MCP clients that support OAuth discover Superlog's authorization server automatically via the protected-resource metadata endpoint:
+
+```
+https://<your-superlog-host>/.well-known/oauth-protected-resource
+```
+
+No manual configuration is required; compatible clients (such as Claude Desktop in OAuth mode) follow the standard authorization code flow.
+
+---
+
+## Configuring Your MCP Client
+
+### Claude Desktop
+
+Add a `superlog` entry to `~/.claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "superlog": {
+      "url": "https://<your-superlog-host>/mcp",
+      "headers": {
+        "Authorization": "Bearer sl_pat_xxxx"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving the file.
+
+### Cursor and Other HTTP MCP Clients
+
+Configure the MCP server in your client's settings:
+
+| Setting | Value |
+|---|---|
+| **Server URL** | `https://<your-superlog-host>/mcp` |
+| **Auth header** | `Authorization: Bearer sl_pat_xxxx` |
+
+### Quick Install via Coding Agent
+
+If your AI assistant supports tool-based setup, ask it to run the following prompt — Superlog's skills package will detect your MCP client and configure everything automatically:
+
+```
+Run npx skills add superloglabs/skills --all and use the skills to install Superlog in this project
+```
+
+---
+
+## Token Scopes
+
+| Scope | Tools available |
+|---|---|
+| **Full access** (default) | All tools: telemetry queries, incidents, dashboards, alerts, agent config |
+| **`superlog:telemetry`** | Telemetry tools only: `query_logs`, `query_traces`, `query_metrics`, `list_services` |
+
+<Tip>
+  Use a telemetry-only token when you want an AI assistant to read observability data without the ability to modify dashboards, alerts, or investigation settings.
+</Tip>
+
+---
+
+## Managing PATs via the API
+
+You can also manage PATs programmatically using the REST API. All three endpoints require a valid user session (cookie or OAuth token).
+
+### List tokens
+
+```
+GET /api/me/mcp-tokens
+```
+
+Returns all tokens for the authenticated user, including their name, associated project, and last-used timestamp. Plaintext values are **never** returned.
+
+### Create a token
+
+```
+POST /api/me/mcp-tokens
+```
+
+**Request body**
+
+```json
+{
+  "name": "My local assistant",
+  "projectId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "expiry": "90d"
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | string | No | Defaults to `"MCP token"` if omitted |
+| `projectId` | uuid | No | Required when your account has multiple projects in the active org |
+| `expiry` | string | No | `"30d"`, `"90d"`, `"1y"`, or `"never"`. Defaults to `"never"` |
+
+**Response** — includes `plaintext` (the full token value, shown once):
+
+```json
+{
+  "token": {
+    "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "name": "My local assistant",
+    "tokenPrefix": "sl_pat_abc",
+    "plaintext": "sl_pat_xxxx...",
+    "projectId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "expiresAt": null,
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  }
+}
+```
+
+### Revoke a token
+
+```
+DELETE /api/me/mcp-tokens/:id
+```
+
+Returns `{"ok": true}` on success. Returns `404` if the token does not exist or belongs to another user.
+
+---
+
+## Related
+
+- [MCP Tool Reference](/api/mcp-tools) — complete list of all tools and their parameters

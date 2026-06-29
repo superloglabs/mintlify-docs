@@ -1,0 +1,263 @@
+---
+title: "Projects API: Create and Manage Superlog Projects"
+sidebarTitle: "Projects"
+description: "REST endpoints to list, create, update, and delete Superlog projects. Automate project provisioning with the management API."
+---
+
+The Projects API lets you create, inspect, and update Superlog projects programmatically. This is useful for CI/CD pipelines, Terraform-based infrastructure provisioning, and any workflow where you need to spin up observability alongside a new service.
+
+All endpoints require a management key (`sl_management_…`) in the `Authorization: Bearer` header. See [Authentication](/api/authentication) for how to obtain one.
+
+**Base path:** `/api/v1/projects`
+
+---
+
+## List all projects
+
+`GET /api/v1/projects`
+
+Returns every project in your org, ordered most-recently-created first.
+
+```bash
+curl https://api.superlog.sh/api/v1/projects \
+  -H "Authorization: Bearer sl_management_xxxx"
+```
+
+**Response**
+
+```json
+{
+  "projects": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "My App",
+      "slug": "my-app",
+      "project_context": "Node.js API on ECS, RDS Postgres database.",
+      "created_at": "2025-01-15T10:30:00.000Z",
+      "automerge_fix_prs": "never",
+      "automerge_method": "squash",
+      "pr_base_branch": null
+    }
+  ]
+}
+```
+
+<ResponseField name="projects" type="array">
+  Array of project objects. Empty array if the org has no projects yet.
+</ResponseField>
+
+<ResponseField name="projects[].id" type="string (UUID)">
+  Unique project identifier. Use this as `projectId` in all other API calls.
+</ResponseField>
+
+<ResponseField name="projects[].name" type="string">
+  Human-readable display name.
+</ResponseField>
+
+<ResponseField name="projects[].slug" type="string">
+  URL-safe identifier. Lowercase alphanumeric + dashes, up to 40 characters. Unique within the org.
+</ResponseField>
+
+<ResponseField name="projects[].project_context" type="string">
+  Free-text architecture description fed to the Superlog agent when it analyzes issues in this project.
+</ResponseField>
+
+<ResponseField name="projects[].created_at" type="string (ISO 8601)">
+  When the project was created.
+</ResponseField>
+
+<ResponseField name="projects[].automerge_fix_prs" type='"never" | "when_checks_pass" | "immediately"'>
+  Auto-merge policy for agent-opened fix PRs.
+</ResponseField>
+
+<ResponseField name="projects[].automerge_method" type='"squash" | "merge" | "rebase"'>
+  Merge strategy used when auto-merging.
+</ResponseField>
+
+<ResponseField name="projects[].pr_base_branch" type="string | null">
+  Target branch for agent-opened PRs. `null` means the repository default branch.
+</ResponseField>
+
+---
+
+## Get a project
+
+`GET /api/v1/projects/:projectId`
+
+Fetch a single project by its UUID.
+
+```bash
+curl https://api.superlog.sh/api/v1/projects/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
+  -H "Authorization: Bearer sl_management_xxxx"
+```
+
+**Response** — same shape as a single entry in the list response, wrapped in a `project` object:
+
+```json
+{
+  "project": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "My App",
+    "slug": "my-app",
+    "project_context": "Node.js API on ECS, RDS Postgres database.",
+    "created_at": "2025-01-15T10:30:00.000Z",
+    "automerge_fix_prs": "never",
+    "automerge_method": "squash",
+    "pr_base_branch": null
+  }
+}
+```
+
+Returns `404` if no project with the given UUID exists in your org.
+
+---
+
+## Create a project
+
+`POST /api/v1/projects`
+
+Creates a new project and, by default, mints an initial ingest key in the same request so you can start sending telemetry immediately.
+
+```bash
+curl -X POST https://api.superlog.sh/api/v1/projects \
+  -H "Authorization: Bearer sl_management_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My App",
+    "slug": "my-app",
+    "project_context": "Node.js API running on ECS. Main DB is RDS Postgres.",
+    "mint_ingest_key": true
+  }'
+```
+
+**Request body**
+
+<ParamField body="name" type="string" required>
+  Display name for the project. 1–120 characters.
+</ParamField>
+
+<ParamField body="slug" type="string" required>
+  URL-safe identifier for the project. 1–40 characters, lowercase alphanumeric and dashes only (e.g., `my-app`). Must be unique within the org. The first and last characters must be alphanumeric.
+</ParamField>
+
+<ParamField body="project_context" type="string">
+  Free-text description of your service architecture (up to 8,000 characters). The Superlog agent reads this when analyzing errors and writing fix PRs. Include details like runtime, framework, database, and deployment environment.
+</ParamField>
+
+<ParamField body="mint_ingest_key" type="boolean" default="true">
+  When `true` (the default), an ingest key named `"Initial ingest key"` is minted alongside the project and returned in the response. Set to `false` if you prefer to mint keys separately.
+</ParamField>
+
+<ParamField body="automerge_fix_prs" type='"never" | "when_checks_pass" | "immediately"' default='"never"'>
+  Controls whether the agent auto-merges the fix PRs it opens.
+
+  - `"never"` — PRs are opened but never merged automatically.
+  - `"when_checks_pass"` — uses GitHub's native auto-merge; the PR merges once all required status checks pass.
+  - `"immediately"` — the agent calls the merge API immediately after the PR is opened, without waiting for checks.
+</ParamField>
+
+<ParamField body="automerge_method" type='"squash" | "merge" | "rebase"' default='"squash"'>
+  Merge strategy to use when `automerge_fix_prs` is not `"never"`.
+</ParamField>
+
+<ParamField body="pr_base_branch" type="string | null">
+  Target branch for agent-opened fix PRs. Pass `null` or omit to use the repository's default branch. Must be a valid Git branch name if provided.
+</ParamField>
+
+**Response**
+
+```json
+{
+  "project": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "My App",
+    "slug": "my-app",
+    "project_context": "Node.js API running on ECS. Main DB is RDS Postgres.",
+    "automerge_fix_prs": "never",
+    "automerge_method": "squash",
+    "pr_base_branch": null
+  },
+  "api_key": {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "name": "Initial ingest key",
+    "key_prefix": "sl_live_xx",
+    "plaintext": "sl_live_xxxxxxxxxxxxxxxxxxxx"
+  }
+}
+```
+
+<ResponseField name="project" type="object">
+  The newly created project. Same shape as the get-project response.
+</ResponseField>
+
+<ResponseField name="api_key" type="object | null">
+  The minted ingest key. Present when `mint_ingest_key` is `true`; `null` otherwise. The `plaintext` field contains the full key value — **store it immediately**, as it is shown only once.
+</ResponseField>
+
+<Warning>
+  The `api_key.plaintext` value is returned exactly once and cannot be retrieved again. Copy it to your secrets manager before discarding the response.
+</Warning>
+
+**Error codes**
+
+| Status | Cause |
+|---|---|
+| `400` | Validation failed — check `name`, `slug` format, or `automerge_fix_prs` value |
+| `409` | The `slug` is already in use in this org |
+
+---
+
+## Update a project
+
+`PATCH /api/v1/projects/:projectId`
+
+Partially updates a project. Only the fields you include in the request body are changed — omitted fields are left untouched.
+
+```bash
+curl -X PATCH https://api.superlog.sh/api/v1/projects/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
+  -H "Authorization: Bearer sl_management_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"automerge_fix_prs": "when_checks_pass"}'
+```
+
+**Request body**
+
+All fields are optional. The same field definitions as [Create a project](#create-a-project) apply, with the following additions:
+
+<ParamField body="name" type="string">
+  New display name. 1–120 characters.
+</ParamField>
+
+<ParamField body="slug" type="string">
+  New slug. Must be unique within the org. If the slug is unchanged, no conflict check is performed.
+</ParamField>
+
+<ParamField body="project_context" type="string">
+  Replaces the entire project context string. Up to 8,000 characters.
+</ParamField>
+
+<ParamField body="automerge_fix_prs" type='"never" | "when_checks_pass" | "immediately"'>
+  New auto-merge policy.
+</ParamField>
+
+<ParamField body="automerge_method" type='"squash" | "merge" | "rebase"'>
+  New merge strategy.
+</ParamField>
+
+<ParamField body="pr_base_branch" type="string | null">
+  New PR base branch. Pass `null` to revert to the repo default.
+</ParamField>
+
+**Response** — the updated project object, same shape as get-project.
+
+**Error codes**
+
+| Status | Cause |
+|---|---|
+| `400` | `pr_base_branch` is not a valid Git branch name |
+| `404` | Project not found in your org |
+| `409` | New `slug` is already in use in this org |
+
+<Tip>
+  To update only the auto-merge settings without touching the project name or context, send a body with just the automation fields — for example `{"automerge_fix_prs": "immediately", "automerge_method": "rebase"}`.
+</Tip>

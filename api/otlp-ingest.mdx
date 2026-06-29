@@ -1,0 +1,180 @@
+---
+title: "OTLP Ingest Endpoints for Traces, Logs, and Metrics"
+sidebarTitle: "OTLP Ingest"
+description: "Send OpenTelemetry data to Superlog over OTLP/HTTP. Dedicated endpoints accept traces, logs, and metrics in protobuf or JSON format."
+---
+
+Superlog's ingest proxy accepts standard OTLP/HTTP requests. Point your OpenTelemetry SDK or collector at these endpoints and your traces, logs, and metrics start appearing in the dashboard immediately. Every endpoint authenticates with a project-scoped ingest key and supports both protobuf and JSON encodings.
+
+## Authentication
+
+All OTLP endpoints require an `Authorization` header carrying a project ingest key:
+
+```
+Authorization: Bearer sl_live_xxxx
+```
+
+Ingest keys are created per-project in **Settings → API Keys**. They are prefixed `sl_live_` and have no expiry by default; you can revoke them at any time.
+
+<Note>
+  Do not use a Personal Access Token (PAT) on ingest endpoints. PATs are for the MCP server only. Sending a `superlog_cli_*` or `sl_pat_*` token to an ingest endpoint returns `401`.
+</Note>
+
+## Base URL
+
+| Environment | Base URL |
+|---|---|
+| **Superlog Cloud** | Shown in your project settings under **Settings → API Keys** |
+| **Self-hosted** | `https://<your-superlog-host>` |
+| **Local development** | `http://localhost:4101` |
+
+---
+
+## Endpoints
+
+### POST /v1/traces
+
+Ingest OpenTelemetry trace spans.
+
+**Headers**
+
+| Header | Value |
+|---|---|
+| `Authorization` | `Bearer <ingest-key>` |
+| `Content-Type` | `application/json` or `application/x-protobuf` |
+
+**Body**
+
+Standard OTLP `ExportTraceServiceRequest` — either JSON or serialized protobuf, matching the `Content-Type` you declare.
+
+**Responses**
+
+| Status | Meaning |
+|---|---|
+| `200` | Accepted |
+| `400` | Empty or malformed body |
+| `401` | Missing or invalid ingest key |
+| `402` | Monthly telemetry quota exceeded (upgrade your plan) |
+| `413` | Payload exceeds the 64 MiB per-request limit |
+
+---
+
+### POST /v1/logs
+
+Ingest OpenTelemetry log records.
+
+**Headers**
+
+| Header | Value |
+|---|---|
+| `Authorization` | `Bearer <ingest-key>` |
+| `Content-Type` | `application/json` or `application/x-protobuf` |
+
+**Body**
+
+Standard OTLP `ExportLogsServiceRequest`.
+
+**Responses** — same status codes as `/v1/traces`.
+
+---
+
+### POST /v1/metrics
+
+Ingest OpenTelemetry metric data points (gauge, sum, histogram, and summary).
+
+**Headers**
+
+| Header | Value |
+|---|---|
+| `Authorization` | `Bearer <ingest-key>` |
+| `Content-Type` | `application/json` or `application/x-protobuf` |
+
+**Body**
+
+Standard OTLP `ExportMetricsServiceRequest`.
+
+**Responses** — same status codes as `/v1/traces`.
+
+---
+
+### POST /aws/firehose/metrics
+
+Ingest CloudWatch Metric Streams data delivered by an Amazon Kinesis Data Firehose HTTP endpoint. Superlog's collector decodes OTLP v1 encoding (the format CloudWatch Metric Streams emits when configured with `output-format: opentelemetry1.0`).
+
+**Authentication**
+
+Firehose delivers the ingest key in the `X-Amz-Firehose-Access-Key` header rather than `Authorization`. Set this header to your project ingest key when you configure the Firehose delivery stream's HTTP endpoint in the AWS console.
+
+**Responses**
+
+Firehose treats only `200` as a successful delivery. Any other status causes Firehose to retry with backoff. After the configured retry window, batches are written to your configured error S3 bucket.
+
+---
+
+### POST /aws/firehose/logs
+
+Ingest CloudWatch Logs data delivered by a Kinesis Data Firehose subscription filter. Authentication is the same as `/aws/firehose/metrics`.
+
+---
+
+### GET /health
+
+Health check endpoint. Returns `{"ok": true}` when the proxy is running. No authentication required. Suitable for load-balancer health probes.
+
+---
+
+## Code Examples
+
+### Node.js — `@opentelemetry/exporter-trace-otlp-http`
+
+```ts
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+
+const exporter = new OTLPTraceExporter({
+  url: 'https://<your-superlog-host>/v1/traces',
+  headers: {
+    Authorization: 'Bearer sl_live_xxxx',
+  },
+});
+```
+
+Point the equivalent log and metric exporters at `/v1/logs` and `/v1/metrics` respectively, using the same `Authorization` header.
+
+### curl
+
+```bash
+curl -X POST https://<your-superlog-host>/v1/traces \
+  -H "Authorization: Bearer sl_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d @traces.json
+```
+
+---
+
+## Error Handling
+
+Non-2xx responses carry a JSON body with a single `error` field:
+
+```json
+{ "error": "invalid api key" }
+```
+
+Common errors:
+
+| Status | `error` value | What to do |
+|---|---|---|
+| `401` | `invalid api key` | Check that the key exists and has not been revoked in Settings → API Keys |
+| `401` | `missing api key` | Add the `Authorization: Bearer <key>` header |
+| `402` | `telemetry quota exceeded…` | Upgrade your plan or wait for the next billing period |
+| `413` | `request body exceeds the … limit` | Split the batch into smaller payloads |
+
+<Warning>
+  `4xx` responses are permanent — your OTLP exporter will **drop** the batch rather than retry it. `5xx` responses are transient; exporters retry them with backoff.
+</Warning>
+
+---
+
+## Related
+
+- [Creating ingest keys](/configuration/ingest-keys)
+- [Telemetry concepts](/concepts/telemetry)

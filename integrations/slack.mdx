@@ -1,0 +1,87 @@
+---
+title: "Connect Slack for Superlog Incident Notifications"
+sidebarTitle: "Slack"
+description: "Receive Superlog incident alerts and agent run results directly in Slack. Resolve incidents and trigger follow-up investigations from any channel."
+---
+
+Connecting Slack brings Superlog notifications into the channel your team already watches. When a new incident is created or an agent run completes, Superlog posts a message with the key details and a set of action buttons — so you can resolve an incident or kick off a follow-up investigation without leaving Slack.
+
+## What the Slack integration does
+
+<CardGroup cols={2}>
+  <Card title="Incident alerts" icon="bell">
+    Superlog posts a message to your chosen channel the moment a new incident is detected.
+  </Card>
+  <Card title="Agent run summaries" icon="robot">
+    When the AI agent finishes an investigation, the result — including root cause and PR link — appears in the same thread.
+  </Card>
+  <Card title="Resolve from Slack" icon="circle-check">
+    Click the **Resolve** button directly in the Slack message. No need to open the Superlog dashboard.
+  </Card>
+  <Card title="Request follow-up" icon="arrow-rotate-right">
+    If the first investigation didn't fully resolve the incident, click **Request follow-up** to trigger another agent run.
+  </Card>
+</CardGroup>
+
+## How to connect
+
+<Steps>
+  <Step title="Open Settings in the Superlog dashboard">
+    Navigate to **Settings** in the left sidebar of your project.
+  </Step>
+  <Step title="Start the Slack OAuth flow">
+    Click **Connect Slack**. You will be redirected to Slack to authorise the Superlog app for your workspace.
+  </Step>
+  <Step title="Approve the requested scopes">
+    Superlog requests the following scopes:
+
+    | Scope | Purpose |
+    |---|---|
+    | `chat:write` | Post messages and update existing notifications |
+    | `chat:write.public` | Post to public channels without being a member |
+    | `channels:read` | List public channels for the channel picker |
+    | `groups:read` | List private channels you have access to |
+    | `channels:history` | Read message history to update notification threads |
+    | `groups:history` | Read private channel history to update threads |
+  </Step>
+  <Step title="Return to Superlog">
+    Slack redirects you back to the dashboard. The Settings page will confirm that Slack is connected.
+  </Step>
+  <Step title="Choose a notification channel">
+    Under **Settings → Notifications**, pick the Slack channel where you want incident alerts and agent run results to appear. You can set a different channel per project.
+  </Step>
+</Steps>
+
+<Tip>
+  You can post to a private channel by inviting the Superlog app to it first (`/invite @Superlog`), then selecting it in the channel picker.
+</Tip>
+
+## Interactive buttons in Slack messages
+
+Every Slack notification from Superlog includes action buttons that let you act without opening the dashboard.
+
+### On incident creation
+
+- **Resolve** — marks the incident as resolved immediately. If the incident is already resolved, clicking this button refreshes its side-effects (re-sends downstream webhooks, updates linked tickets).
+
+### On agent run completion
+
+- **Resolve** — resolves the incident once you are satisfied with the agent's findings.
+- **Request follow-up** — triggers a new agent run for the same incident, useful when the initial investigation surfaced partial information or you want the agent to explore a different hypothesis.
+
+<Note>
+  Button clicks are authenticated against the Slack signing secret. Only members of your Slack workspace can trigger actions.
+</Note>
+
+## Org-level connection
+
+The Slack connection is shared at the **organisation** level, the same as GitHub. You connect Slack once for your org and then assign notification channels per project. If you manage multiple projects under one org, each project can route alerts to a different channel while using the same Slack app installation.
+
+## Custom webhook delivery
+
+If you need to send incident events to your own endpoint — a PagerDuty integration, a custom Slack app, or any other HTTP target — use Superlog's outbound webhooks instead of, or alongside, the native Slack integration. See [Webhooks](/configuration/webhooks) for the payload schema and delivery settings.
+
+## Next steps
+
+- Send incident events to a custom endpoint → [Webhooks](/configuration/webhooks)
+- Connect Linear to create issue tickets alongside Slack alerts → [Connect Linear](/integrations/linear)

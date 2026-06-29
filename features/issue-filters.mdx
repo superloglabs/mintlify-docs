@@ -1,0 +1,133 @@
+---
+title: "Filter Noise with Superlog Issue Filters"
+sidebarTitle: "Issue Filters"
+description: "Issue filters let you exclude noisy errors or restrict investigations to specific services and routes, reducing alert fatigue and focusing AI agent time."
+---
+
+By default, every ERROR-level span and log record that arrives in your project is eligible to become a Superlog issue and trigger an AI investigation. Issue filters let you take back control: exclude patterns that are well-understood noise, or restrict investigations to only the signals you actually care about.
+
+## How filters work
+
+Issue filters operate on **clauses** — simple `{ key, value }` equality rules that match against OpenTelemetry attribute key/value pairs. There are four buckets, applied separately to spans and logs:
+
+| Bucket | Effect |
+|---|---|
+| `excludeSpans` | Spans matching ANY clause are dropped and never become issues |
+| `excludeLogs` | Log records matching ANY clause are dropped and never become issues |
+| `includeSpans` | When non-empty, a span MUST match at least one clause to become an issue |
+| `includeLogs` | When non-empty, a log record MUST match at least one clause to become an issue |
+
+<Warning>
+  **Excludes always win over includes.** If an event matches an exclude clause it is dropped, even if it also matches an include clause.
+</Warning>
+
+Filters are per-project and are evaluated in the ingestion worker — filtered events are dropped before any incident or issue is created, so they do not consume AI investigation capacity.
+
+## Clause structure
+
+Each clause is an object with two fields:
+
+```json
+{ "key": "service.name", "value": "health-checker" }
+```
+
+The `key` is any OTel attribute name and the `value` is the exact string it must equal. You can add up to 20 clauses per bucket.
+
+## Configuring filters
+
+### In the UI
+
+Go to **Settings → Issue Filters** in your project. You can add and remove clauses for each of the four buckets and preview results before saving.
+
+### Via MCP tools
+
+The MCP server exposes three tools for managing issue filters:
+
+| Tool | Description |
+|---|---|
+| `get_issue_filter` | Read the current filter configuration |
+| `update_issue_filter` | Update one or more buckets. Buckets you omit are left unchanged; pass `[]` to clear a bucket |
+| `preview_issue_filter` | Preview which recent ERROR events would still become issues under a candidate filter, without saving |
+
+<Note>
+  `update_issue_filter` **replaces** the bucket(s) you pass. To add clauses without losing existing ones, call `get_issue_filter` first and include the existing clauses in your update.
+</Note>
+
+### Via REST API
+
+```http
+GET  /api/projects/:projectId/ingest-filters
+PUT  /api/projects/:projectId/ingest-filters
+```
+
+## Preview before saving
+
+Always preview filter changes before committing them. The `preview_issue_filter` MCP tool evaluates the candidate filter against ERROR events from the **last 24 hours** and returns a sample of events that would still become issues. This lets you confirm that your exclude clauses remove the noise you expect without accidentally silencing real incidents.
+
+```
+# Example MCP call (pseudo-code)
+preview_issue_filter({
+  excludeSpans: [{ key: "http.route", value: "/health" }]
+})
+# Returns: { config: { ... }, events: [ ... up to 10 sample events ... ] }
+```
+
+## Examples
+
+### Exclude health check spans
+
+Health checks generate a steady stream of ERROR-free spans that can still create noise. Drop them entirely:
+
+```json
+{
+  "excludeSpans": [
+    { "key": "http.route", "value": "/health" },
+    { "key": "http.route", "value": "/readyz" }
+  ]
+}
+```
+
+### Exclude a noisy background worker
+
+A known-flaky job that you've decided not to fix right now:
+
+```json
+{
+  "excludeSpans": [
+    { "key": "service.name", "value": "legacy-sync-worker" }
+  ]
+}
+```
+
+### Restrict investigations to specific services
+
+When you only want your AI agent to investigate errors in the `orders` and `payments` services:
+
+```json
+{
+  "includeSpans": [
+    { "key": "service.name", "value": "orders" },
+    { "key": "service.name", "value": "payments" }
+  ]
+}
+```
+
+### Combine excludes and includes
+
+Investigate only `orders` and `payments` errors, but skip internal health probes in those services:
+
+```json
+{
+  "includeSpans": [
+    { "key": "service.name", "value": "orders" },
+    { "key": "service.name", "value": "payments" }
+  ],
+  "excludeSpans": [
+    { "key": "http.route", "value": "/health" }
+  ]
+}
+```
+
+A span from `orders` that matches `/health` is still excluded because excludes win.
+
+For the full MCP tool reference, see [MCP tools](/api/mcp-tools).

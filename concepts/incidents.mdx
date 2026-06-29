@@ -1,0 +1,121 @@
+---
+title: "What Are Incidents in Superlog?"
+sidebarTitle: "Incidents"
+description: "Incidents are auto-grouped clusters of related errors and anomalies. Learn how Superlog creates, classifies, and resolves incidents from your telemetry."
+---
+
+When your services emit errors, Superlog automatically groups related error events into **incidents** — named, trackable investigations that give you a single place to understand what went wrong, how severe it is, and whether the AI agent has already found a fix.
+
+## How incidents are created
+
+Superlog watches every incoming span and log record for signals that indicate a real problem:
+
+- **Spans** with OpenTelemetry `STATUS_CODE_ERROR` status
+- **Log records** at `ERROR` severity or above
+
+When matching events share the same fingerprint (derived from the exception type, top stack frame, and service name), Superlog groups them into a single incident rather than flooding you with duplicate alerts. The fingerprint is computed at ingest time by the proxy layer, so grouping happens before the data reaches the dashboard.
+
+Each incident is assigned a **codename** — a memorable, auto-generated two-word label like `squishy-narwhal` or `wandering-photon`. Codenames make it easy to refer to an incident in Slack threads, commit messages, or PR descriptions without copying a UUID.
+
+## Incident fields
+
+Every incident exposes the following fields:
+
+| Field | Description |
+|---|---|
+| `title` | A short description of the error, derived from the exception message or log body |
+| `codename` | Auto-generated human-friendly name (e.g. `squishy-narwhal`) |
+| `status` | Current lifecycle state (see below) |
+| `severity` | `SEV-1`, `SEV-2`, or `SEV-3` |
+| `service` | The `service.name` resource attribute of the primary emitting service |
+| `environment` | The `deployment.environment` resource attribute, if present |
+| `firstSeen` | ISO 8601 timestamp of the earliest matching event |
+| `lastSeen` | ISO 8601 timestamp of the most recent matching event |
+| `issueCount` | Number of distinct error signatures grouped into this incident |
+
+## Incident lifecycle
+
+An incident moves through a defined set of statuses from the moment it opens to the moment it is put to rest.
+
+```
+open → resolved
+open → autoresolved_noise
+open → merged (into another incident)
+```
+
+| Status | Meaning |
+|---|---|
+| `open` | Active — errors are still occurring or the incident has not been dismissed |
+| `resolved` | Marked as fixed, either by a human or by the agent after a PR merged |
+| `autoresolved_noise` | The AI agent classified this incident as non-actionable noise and closed it automatically |
+| `merged` | This incident was folded into another, more representative incident |
+
+<Note>
+By default, the **Incidents** page hides `autoresolved_noise` incidents so your list stays focused on real problems. Select **All** in the status filter or pass `status=all` to the API/MCP to include them.
+</Note>
+
+## Severity levels
+
+Superlog uses a three-tier severity model aligned with common on-call runbooks:
+
+<CardGroup cols={3}>
+  <Card title="SEV-1" icon="triangle-exclamation">
+    Critical — production is impacted and customers are affected. Demands immediate attention.
+  </Card>
+  <Card title="SEV-2" icon="circle-exclamation">
+    High — a significant feature or service is degraded. Should be resolved within the business day.
+  </Card>
+  <Card title="SEV-3" icon="circle-info">
+    Low — a minor issue or anomaly that can be triaged at normal pace.
+  </Card>
+</CardGroup>
+
+The AI agent suggests a severity based on the error rate, affected service criticality, and impact evidence it finds in telemetry. You can always override the suggestion in the dashboard.
+
+## Agent noise classification
+
+When the AI agent completes its investigation, it may determine that an incident is not worth human attention. Common noise reasons include:
+
+- `cosmetic_log_only` — the error is a log-level mistake with no real impact
+- `lifecycle_signal` — the event is an expected part of a service lifecycle (startup, shutdown)
+- `self_telemetry` — the error originates from Superlog's own instrumentation
+- `expected_third_party` — the error comes from a known-flaky external dependency
+- `confusing_log_no_impact` — the log says "error" but no user-visible failure occurred
+
+When the agent classifies an incident as noise, Superlog transitions its status to `autoresolved_noise` and records the classification reason. No action is required from you.
+
+## Viewing and filtering incidents
+
+Open the **Incidents** page in the Superlog dashboard to see your project's incidents. You can filter by:
+
+- **Status** — `open`, `resolved`, `autoresolved_noise`, `merged`, or all
+- **Severity** — `SEV-1`, `SEV-2`, or `SEV-3`
+- **Service** — matches the incident's primary `service.name`
+- **Free text** — searches across incident titles and codenames
+
+<Tip>
+The dashboard's **Overview** page surfaces the five most recent SEV-1 and SEV-2 open incidents from the past 24 hours so critical issues are always visible the moment you log in.
+</Tip>
+
+## Resolving an incident
+
+You can resolve an incident in three ways:
+
+<Steps>
+  <Step title="Dashboard">
+    Open the incident detail view and click **Resolve**. Superlog records `dashboard_manual` as the resolution source.
+  </Step>
+  <Step title="Slack">
+    If your Slack integration is connected, use the **Resolve** button in the incident's Slack thread. Superlog records `slack_manual`.
+  </Step>
+  <Step title="MCP tool">
+    Call the `search_incidents` or `get_incident` MCP tools from your AI assistant to inspect and act on incidents programmatically.
+  </Step>
+</Steps>
+
+When the agent opens a fix PR and that PR merges on GitHub, Superlog automatically resolves the incident and records `agent_pr_merged` as the resolution source.
+
+## Related pages
+
+- [Agent Runs](/concepts/agent-runs) — how the AI investigates incidents and opens fix PRs
+- [Telemetry](/concepts/telemetry) — what data triggers incident grouping

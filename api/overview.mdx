@@ -1,0 +1,76 @@
+---
+title: "Superlog Management API Reference"
+sidebarTitle: "Overview"
+description: "The Superlog Management API lets you programmatically create projects, manage API keys, read telemetry, and automate your observability workflow."
+---
+
+The Superlog Management API is a REST interface that lets you automate every aspect of your observability setup — from provisioning new projects and minting ingest keys to querying stored traces, logs, and metrics. All endpoints accept and return `application/json`.
+
+## Base URL
+
+| Environment | Base URL |
+|---|---|
+| Superlog Cloud | `https://api.superlog.sh` |
+| Self-hosted | `https://<your-superlog-host>` |
+
+All management endpoints are served under the `/api/v1/` path prefix. A machine-readable OpenAPI 3.1 spec is always available at `/api/v1/openapi.json`, and an interactive Scalar reference UI is at `/api/v1/docs`.
+
+## Authentication
+
+Every request to `/api/v1/*` must carry an `Authorization: Bearer` header. Superlog uses two distinct key types — choose the right one for each use case.
+
+| Key type | Prefix | Scope | Used for |
+|---|---|---|---|
+| Management key | `sl_management_…` | Org-wide | All `/api/v1/*` REST endpoints |
+| Ingest key | `sl_live_…` | Single project | OTLP data ingest (`/v1/traces`, `/v1/logs`, `/v1/metrics`) |
+
+See [Authentication](/api/authentication) for step-by-step setup instructions.
+
+## Endpoint groups
+
+<CardGroup cols={2}>
+  <Card title="Projects" icon="folder" href="/api/projects">
+    List, create, update, and delete projects in your org.
+  </Card>
+  <Card title="API Keys" icon="key" href="/api/api-keys">
+    Mint and revoke project-scoped ingest keys programmatically.
+  </Card>
+  <Card title="Telemetry Read" icon="chart-line" href="/api/telemetry-read">
+    Query stored traces, logs, and metrics over REST.
+  </Card>
+  <Card title="OTLP Ingest" icon="arrow-up-to-line" href="/api/otlp-ingest">
+    Send traces, logs, and metrics to Superlog from your services.
+  </Card>
+  <Card title="MCP Server" icon="robot" href="/api/mcp-tools">
+    AI assistant integration for query_logs, query_traces, and more.
+  </Card>
+</CardGroup>
+
+## Error codes
+
+Superlog uses standard HTTP status codes. Every error body follows the same shape:
+
+```json
+{ "error": "human-readable message" }
+```
+
+| Status | Meaning |
+|---|---|
+| `400 Bad Request` | Malformed or invalid request body / query parameters |
+| `401 Unauthorized` | Token is missing, the wrong type, or has been revoked |
+| `403 Forbidden` | Token is valid but does not have access to the requested resource |
+| `404 Not Found` | Resource does not exist in your org |
+| `409 Conflict` | A unique constraint was violated (e.g., a slug already in use) |
+| `502 Bad Gateway` | An upstream call (e.g., to GitHub) failed |
+| `503 Service Unavailable` | A required server-side integration is not configured |
+
+## Content type
+
+All request bodies must be JSON. Always include `Content-Type: application/json` when sending a body.
+
+```bash
+curl https://api.superlog.sh/api/v1/projects \
+  -H "Authorization: Bearer sl_management_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My App", "slug": "my-app"}'
+```

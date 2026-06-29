@@ -1,0 +1,128 @@
+---
+title: "Manage Ingest API Keys in Superlog"
+sidebarTitle: "Ingest Keys"
+description: "Ingest API keys authenticate your OpenTelemetry instrumentation with Superlog. Create, rotate, and revoke keys from the project settings page."
+---
+
+Superlog uses two distinct types of API keys, each scoped to a different part of the platform. Understanding which key to use in which context keeps your pipelines secure and avoids confusing authentication errors.
+
+## Key types
+
+| Type | Prefix | Scope | Purpose |
+|------|--------|-------|---------|
+| **Ingest key** | `sl_live_...` | Single project | Sends OTLP telemetry (traces, logs, metrics) to the ingest proxy |
+| **Management key** | `sl_management_...` | Entire org | Calls the REST management API — creates projects, mints keys, reads telemetry |
+
+<Note>
+  Personal Access Tokens (PATs) used by the MCP server are separate from both key types. Manage them under **Settings → API Tokens**. They are not interchangeable with ingest or management keys.
+</Note>
+
+## Creating an ingest key
+
+You can create an ingest key from the dashboard or programmatically via the management API.
+
+<Steps>
+  <Step title="Open the project settings">
+    Navigate to **Settings → API Keys** inside the project that will receive telemetry.
+  </Step>
+  <Step title="Mint the key">
+    Click **New Key**, give it a descriptive name (e.g. `production-orders-service`), then click **Create**.
+  </Step>
+  <Step title="Copy the plaintext immediately">
+    Superlog shows the full key value **only once**. Copy it to your secrets manager before closing the dialog — it cannot be retrieved afterwards.
+  </Step>
+</Steps>
+
+To mint a key programmatically, call the management API:
+
+```bash
+curl -X POST https://<host>/api/v1/projects/<projectId>/api-keys \
+  -H "Authorization: Bearer sl_management_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "production-orders-service"}'
+```
+
+The response includes `plaintext` — the full key shown once — along with a stable `key_prefix` you can display safely later.
+
+## Using an ingest key
+
+Add the key as a `Bearer` token in the `Authorization` header when sending OTLP data to the ingest proxy. The following endpoints accept ingest key authentication:
+
+| Signal | Path |
+|--------|------|
+| Traces | `/v1/traces` |
+| Logs | `/v1/logs` |
+| Metrics | `/v1/metrics` |
+
+```bash
+curl -X POST https://<host>/v1/traces \
+  -H "Authorization: Bearer sl_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d @traces.json
+```
+
+Most OpenTelemetry SDKs let you set the Authorization header via the `OTEL_EXPORTER_OTLP_HEADERS` environment variable:
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT=https://<host>
+export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer sl_live_xxxx"
+```
+
+<Tip>
+  Set `OTEL_EXPORTER_OTLP_HEADERS` in your deployment environment rather than hard-coding the key in source code. This makes rotation straightforward without a code change.
+</Tip>
+
+For full details on ingest endpoints and supported OTLP formats, see the [OTLP Ingest reference](/api/otlp-ingest).
+
+## Revoking a key
+
+<Steps>
+  <Step title="Open the project settings">
+    Navigate to **Settings → API Keys** for the project.
+  </Step>
+  <Step title="Revoke">
+    Find the key by its prefix or name and click **Revoke**. Revocation is immediate — requests using the key will receive a `401` from that point on.
+  </Step>
+</Steps>
+
+To revoke via the management API:
+
+```bash
+curl -X DELETE https://<host>/api/v1/projects/<projectId>/api-keys/<keyId> \
+  -H "Authorization: Bearer sl_management_xxxx"
+```
+
+## Rotating a key safely
+
+Zero-downtime rotation takes three steps:
+
+<Steps>
+  <Step title="Create the replacement key">
+    Mint a new ingest key following the steps above. Keep both keys active.
+  </Step>
+  <Step title="Update your instrumentation">
+    Deploy the new key value to all services and verify telemetry is arriving in the Superlog dashboard.
+  </Step>
+  <Step title="Revoke the old key">
+    Once all traffic is confirmed on the new key, revoke the old one. Revoking before updating instrumentation will break your pipeline.
+  </Step>
+</Steps>
+
+<Warning>
+  Do not revoke the old key until every service and deployment environment has been updated to use the new one. A stale key in a long-running process or container image can silently drop telemetry.
+</Warning>
+
+## Listing keys
+
+To see all active keys for a project:
+
+```bash
+curl https://<host>/api/v1/projects/<projectId>/api-keys \
+  -H "Authorization: Bearer sl_management_xxxx"
+```
+
+The response lists each key's `id`, `name`, `key_prefix`, `last_used_at`, `revoked_at`, and `created_at`. The `key_prefix` (e.g. `sl_live_ab12...`) is safe to display and log — it uniquely identifies the key without exposing the secret.
+
+## Management key authentication
+
+Management keys (`sl_management_...`) are org-scoped and authorize calls to the `/api/v1/*` management REST API. You create them from **Settings → API Keys** at the org level, not inside a project. For authentication details and the full list of management API endpoints, see the [Authentication reference](/api/authentication).
