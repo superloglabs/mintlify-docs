@@ -67,7 +67,7 @@ When `groupMode = per_group`, each distinct group value (e.g. each service) gets
 ## Notification channels
 
 - **Slack** — when your workspace is connected to Superlog, fired alerts can post to a configured channel
-- **Webhooks** — combine alert episodes with the `agent_run.completed` event to push investigation results to any HTTP endpoint
+- **Webhooks** — subscribe to `incident.created` / `incident.updated` to push incident lifecycle and investigation results to any HTTP endpoint
 
 See [Webhooks](/configuration/webhooks) for details on the payload format and endpoint configuration.
 
