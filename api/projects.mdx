@@ -1,7 +1,7 @@
 ---
 title: "Projects API: Create and Manage Superlog Projects"
 sidebarTitle: "Projects"
-description: "REST endpoints to list, create, update, and delete Superlog projects. Automate project provisioning with the management API."
+description: "REST endpoints to list, create, and update Superlog projects. Automate project provisioning with the management API."
 ---
 
 The Projects API lets you create, inspect, and update Superlog projects programmatically. This is useful for CI/CD pipelines, Terraform-based infrastructure provisioning, and any workflow where you need to spin up observability alongside a new service.
@@ -180,8 +180,8 @@ curl -X POST https://api.superlog.sh/api/v1/projects \
   "api_key": {
     "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
     "name": "Initial ingest key",
-    "key_prefix": "sl_live_xx",
-    "plaintext": "sl_live_xxxxxxxxxxxxxxxxxxxx"
+    "key_prefix": "sl_public_xx",
+    "plaintext": "sl_public_xxxxxxxxxxxxxxxxxxxx"
   }
 }
 ```

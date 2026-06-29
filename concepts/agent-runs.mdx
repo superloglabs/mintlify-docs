@@ -1,5 +1,5 @@
 ---
-title: "How Superlog Agent Runs Investigate Incidents"
+title: "Agent Runs: AI-Powered Incident Investigations in Superlog"
 sidebarTitle: "Agent Runs"
 description: "Agent runs are AI-powered investigations of your incidents. Each run analyzes telemetry, finds root causes, and may open a fix PR on GitHub."
 ---
@@ -40,9 +40,15 @@ The agent works through a structured investigation:
 
 | State | Meaning |
 |---|---|
-| `running` | The investigation is in progress |
+| `queued` | The run is waiting to be picked up by the investigation worker |
+| `running` | The investigation is actively in progress |
+| `awaiting_human` | The agent has paused and is waiting for your reply (in Slack, on the PR, or via the feedback form) |
 | `complete` | The run finished and produced a result |
 | `failed` | The run encountered an unrecoverable error (see `failureReason`) |
+
+<Note>
+When the agent is in the `awaiting_human` state, your reply in the Slack thread, a comment on the agent's PR, or a feedback submission will resume the investigation in place — no new run is created.
+</Note>
 
 ## Result fields
 

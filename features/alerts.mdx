@@ -17,12 +17,12 @@ When you create or update an alert you supply the following fields:
 | `aggregation` | `count` \| `sum` \| `avg` | How to aggregate the signal. Use `count` for logs/traces; `sum` or `avg` for metric sources |
 | `comparator` | `gt` \| `lt` | `gt` fires when the value is **above** the threshold; `lt` fires when it is **below** |
 | `threshold` | number | The numeric value the signal is compared against |
-| `metric_name` | string | Required when `source = metric` — the exact metric name as emitted by your SDK |
+| `metricName` | string | Required when `source = metric` — the exact metric name as emitted by your SDK |
 | `filter` | object | Equality filters to narrow the data the alert evaluates (see below) |
-| `group_by` | string | A resource attribute to group by, e.g. `service.name` — enables per-group firing |
-| `group_mode` | `single` \| `per_group` | `single` rolls everything up into one value; `per_group` fires a separate episode per distinct group value |
-| `window_minutes` | integer | The rolling time window over which the signal is measured. Default `5`, max `1440` |
-| `evaluation_interval_seconds` | integer | How often the alert is evaluated. Min `15`, max `3600`. Default `60` |
+| `groupBy` | string | A resource attribute to group by, e.g. `service.name` — enables per-group firing |
+| `groupMode` | `single` \| `per_group` | `single` rolls everything up into one value; `per_group` fires a separate episode per distinct group value |
+| `windowMinutes` | integer | The rolling time window over which the signal is measured. Default `5`, max `1440` |
+| `evaluationIntervalSeconds` | integer | How often the alert is evaluated. Min `15`, max `3600`. Default `60` |
 | `enabled` | boolean | Whether the alert is active. Defaults to `true` |
 
 ### Filter fields
@@ -39,8 +39,8 @@ The `filter` object lets you narrow which events the alert considers:
 ### Validation rules
 
 - `aggregation` must be `count` when `source` is `logs` or `traces`
-- `aggregation` must be `sum` or `avg` when `source` is `metric`, and `metric_name` is required
-- `group_by` is required when `group_mode` is `per_group`
+- `aggregation` must be `sum` or `avg` when `source` is `metric`, and `metricName` is required
+- `groupBy` is required when `groupMode` is `per_group`
 
 ## Creating alerts
 
@@ -62,7 +62,7 @@ You can also create alerts via the [MCP `create_alert` tool](/api/mcp-tools) or 
 
 Each time an alert starts firing, Superlog opens an **episode** — a record with a start time, peak observed value, and (when the condition clears) an end time. Episodes are numbered per alert so you can refer to "Episode #3 of the high-error-rate alert."
 
-When `group_mode = per_group`, each distinct group value (e.g. each service) gets its own episode. Episodes link to any incidents they trigger, making it easy to trace a Superlog incident back to its alerting condition.
+When `groupMode = per_group`, each distinct group value (e.g. each service) gets its own episode. Episodes link to any incidents they trigger, making it easy to trace a Superlog incident back to its alerting condition.
 
 ## Notification channels
 
@@ -91,14 +91,14 @@ Content-Type: application/json
   "filter": {
     "resourceAttrs": [{ "key": "service.name", "value": "orders" }]
   },
-  "window_minutes": 5
+  "windowMinutes": 5
 }
 ```
 
 The response includes the full alert object with its assigned `id`.
 
 <Tip>
-  Use `group_mode: "per_group"` with `group_by: "service.name"` when you want a single alert definition to fire independently for each service rather than on their combined total.
+  Use `groupMode: "per_group"` with `groupBy: "service.name"` when you want a single alert definition to fire independently for each service rather than on their combined total.
 </Tip>
 
 <Note>

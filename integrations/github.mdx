@@ -1,7 +1,7 @@
 ---
-title: "Connect GitHub to Superlog for Automated Fix PRs"
+title: "GitHub Integration: Automated Fix PRs with Superlog"
 sidebarTitle: "GitHub"
-description: "Connect your GitHub repositories to Superlog so the AI agent can read source code, open fix PRs, and auto-merge when checks pass."
+description: "Connect your GitHub repositories to Superlog so the AI agent can read source code, open fix PRs, and auto-merge when CI checks pass."
 ---
 
 Connecting GitHub gives the Superlog AI agent direct access to your source code. Once connected, the agent can inspect the files involved in an incident, push a fix branch, and open a pull request — all without you leaving your workflow. GitHub is optional: incidents are still detected and investigated without it, but the agent won't be able to open PRs until a connection is active.
@@ -79,7 +79,7 @@ After connecting GitHub, you can tune how the agent handles the pull requests it
 The **Connect GitHub** flow also authorises a commit-author identity so that Superlog's commits appear under a recognisable name. If this token expires or you need to update the author identity, click **Refresh access** in Settings. This re-runs the commit-author OAuth flow without removing the App installation.
 
 <Info>
-  If you see `?gh=error` after returning from GitHub during a refresh, check that both callback URLs are registered on your GitHub App: `…/github/install/callback` and `…/github/author/callback`. Both URLs must be registered on the GitHub App settings page.
+  If you see `?gh=error` after returning from GitHub during a refresh, try the flow again. If the error persists, contact support — the Superlog team can investigate the OAuth callback on the server side.
 </Info>
 
 ## Disconnecting or changing repositories

@@ -1,10 +1,10 @@
 ---
-title: "API Keys: Mint and Revoke Ingest Keys"
+title: "API Keys: Mint and Manage Ingest Keys"
 sidebarTitle: "API Keys"
-description: "Use the Superlog management API to programmatically mint and revoke project ingest keys for automated provisioning and key rotation."
+description: "Use the Superlog management API to programmatically mint project ingest keys for automated provisioning and key rotation workflows."
 ---
 
-Ingest keys (`sl_live_…`) are the credentials your services use to push OTLP telemetry — traces, logs, and metrics — to Superlog. You can manage them from the dashboard or automate the entire lifecycle with the management API.
+Ingest keys (`sl_public_…`) are the credentials your services use to push OTLP telemetry — traces, logs, and metrics — to Superlog. You can manage them from the dashboard or automate minting with the management API.
 
 All endpoints on this page require a management key (`sl_management_…`). See [Authentication](/api/authentication) for setup instructions.
 
@@ -35,7 +35,7 @@ curl https://api.superlog.sh/api/v1/projects/<projectId>/api-keys \
     {
       "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
       "name": "Production ingest key",
-      "key_prefix": "sl_live_ab",
+      "key_prefix": "sl_public_ab",
       "last_used_at": "2025-06-01T08:45:00.000Z",
       "revoked_at": null,
       "created_at": "2025-01-15T10:30:00.000Z"
@@ -49,7 +49,7 @@ curl https://api.superlog.sh/api/v1/projects/<projectId>/api-keys \
 </ResponseField>
 
 <ResponseField name="api_keys[].id" type="string (UUID)">
-  Unique identifier for the key. Use this as `:id` when revoking.
+  Unique identifier for the key.
 </ResponseField>
 
 <ResponseField name="api_keys[].name" type="string">
@@ -100,14 +100,14 @@ curl -X POST https://api.superlog.sh/api/v1/projects/<projectId>/api-keys \
   "api_key": {
     "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
     "name": "Production ingest key",
-    "key_prefix": "sl_live_ab",
-    "plaintext": "sl_live_abcdefghijklmnopqrstuvwxyz"
+    "key_prefix": "sl_public_ab",
+    "plaintext": "sl_public_abcdefghijklmnopqrstuvwxyz"
   }
 }
 ```
 
 <ResponseField name="api_key.id" type="string (UUID)">
-  Unique identifier. Use this to revoke the key later.
+  Unique identifier for the key.
 </ResponseField>
 
 <ResponseField name="api_key.name" type="string">
@@ -128,41 +128,9 @@ curl -X POST https://api.superlog.sh/api/v1/projects/<projectId>/api-keys \
 
 ---
 
-## Revoke an ingest key
-
-`DELETE /api/v1/projects/:projectId/api-keys/:id`
-
-Immediately revokes an ingest key. Any services still using the revoked key will receive `401` errors on their next ingest request. The revocation is permanent and cannot be undone.
-
-```bash
-curl -X DELETE \
-  https://api.superlog.sh/api/v1/projects/<projectId>/api-keys/<keyId> \
-  -H "Authorization: Bearer sl_management_xxxx"
-```
-
-**Path parameters**
-
-<ParamField path="projectId" type="string (UUID)" required>
-  The project the key belongs to.
-</ParamField>
-
-<ParamField path="id" type="string (UUID)" required>
-  The key's UUID, as returned by the list or mint endpoints.
-</ParamField>
-
-**Response**
-
-```json
-{ "ok": true }
-```
-
-Returns `404` if no active key with the given UUID exists in the project.
-
----
-
 ## Key rotation workflow
 
-Use the following pattern to rotate an ingest key without dropping telemetry:
+Ingest keys cannot be revoked via the REST API — revocation is done from the Superlog dashboard under **Settings → API Keys**. Use the following pattern to rotate a key without dropping telemetry:
 
 <Steps>
   <Step title="Mint a replacement key">
@@ -171,8 +139,8 @@ Use the following pattern to rotate an ingest key without dropping telemetry:
   <Step title="Deploy the new key">
     Update your service configuration to use the new key. Verify that telemetry is flowing in the Superlog dashboard.
   </Step>
-  <Step title="Revoke the old key">
-    Call `DELETE /api/v1/projects/:projectId/api-keys/:id` with the old key's UUID once all services have migrated.
+  <Step title="Revoke the old key from the dashboard">
+    In the dashboard under **Settings → API Keys**, find the old key by its prefix and revoke it once all services have migrated.
   </Step>
 </Steps>
 

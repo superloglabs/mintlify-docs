@@ -1,10 +1,10 @@
 ---
-title: "Self-Host Superlog with Docker Compose"
+title: "Self-Host Superlog: Complete Stack on Your Infrastructure"
 sidebarTitle: "Self-Hosting"
 description: "Run Superlog on your own infrastructure using Docker Compose. All services — API, proxy, worker, and databases — start with a single command."
 ---
 
-The Superlog Community edition is a complete, self-contained observability stack you can run on any machine with Docker installed. A single `docker compose up` command starts PostgreSQL and ClickHouse; a single `pnpm dev` command starts the web app, API, OTLP ingest proxy, and background workers. All of your telemetry stays on your own infrastructure.
+The Superlog Community edition is a complete, self-contained observability stack you can run on any machine with Docker installed. A single `docker compose up` command starts the databases; a single `pnpm dev` command starts the web app, API, OTLP ingest proxy, and background workers. All of your telemetry stays on your own infrastructure.
 
 ## Prerequisites
 
@@ -47,21 +47,13 @@ Point your application's OTLP exporter at `http://localhost:4101` to start sendi
   </Step>
 
   <Step title="Start the databases">
-    Use Docker Compose to start PostgreSQL and ClickHouse in the background. The compose file also starts the OpenTelemetry Collector, which receives OTLP data and writes it to ClickHouse.
+    Use Docker Compose to start the database services in the background. The compose file also starts the OpenTelemetry Collector, which receives OTLP data and writes it to storage.
 
     ```bash
     docker compose up -d
     ```
 
-    The following containers will start:
-
-    | Container | Image | Purpose |
-    |---|---|---|
-    | `postgres` | `postgres:16` | Application data, incidents, API keys |
-    | `clickhouse` | `clickhouse/clickhouse-server:26.1` | High-cardinality telemetry storage |
-    | `collector` | `otel/opentelemetry-collector-contrib:0.150.1` | OTLP ingest and ClickHouse export |
-
-    Wait for the health checks to pass before continuing. You can verify readiness with:
+    Wait for all containers to report as healthy before continuing. You can check their status with:
 
     ```bash
     docker compose ps
@@ -69,7 +61,7 @@ Point your application's OTLP exporter at `http://localhost:4101` to start sendi
   </Step>
 
   <Step title="Run database migrations">
-    Apply the Drizzle schema migrations to PostgreSQL:
+    Apply the schema migrations to the database:
 
     ```bash
     pnpm --filter @superlog/db db:migrate
@@ -94,7 +86,7 @@ Point your application's OTLP exporter at `http://localhost:4101` to start sendi
 <Note>
   The Community edition you are running is **fully open-source** under the [Apache License 2.0](https://github.com/superloglabs/superlog/blob/main/LICENSE.md). You are free to use, modify, and distribute it for any purpose — including commercial use — without paying anything.
 
-  The default `community` agent runner records a local incident summary. For AI-powered root-cause analysis and automated fix PRs, connect a GitHub integration — see the tip below.
+  The default community agent runner records a local incident summary for every detected incident. To enable AI-powered root-cause analysis and automated fix PRs, connect a GitHub integration — see the tip below.
 </Note>
 
 <Info>

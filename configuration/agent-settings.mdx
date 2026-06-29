@@ -1,7 +1,7 @@
 ---
-title: "Configure AI Agent PR Automation in Superlog"
+title: "Configure Superlog AI Agent Automation and PR Settings"
 sidebarTitle: "Agent Settings"
-description: "Control how Superlog's AI agent opens and merges fix PRs. Set auto-merge policy, merge strategy, and target branch per project."
+description: "Control how Superlog's AI agent opens and merges fix PRs. Configure auto-merge policy, merge strategy, and target branch per project."
 ---
 
 When the Superlog AI agent finishes investigating an incident and produces a fix, it opens a pull request on your behalf. Agent automation settings give you precise control over what happens next — from leaving the PR for your team to review, all the way to merging it automatically the moment CI passes.
@@ -63,7 +63,7 @@ curl -X PATCH https://<host>/api/v1/projects/<projectId> \
   -d '{"pr_base_branch": "develop"}'
 ```
 
-Set `pr_base_branch` to `null` or an empty string to revert to the repository's default branch.
+Set `pr_base_branch` to `null` or an empty string to revert to the repository's default branch. The value must be 200 characters or fewer.
 
 <Tip>
   If your team uses a `develop` or `staging` branch as the integration target, set `pr_base_branch` to that branch name. This prevents the agent from opening PRs that bypass your normal review flow.

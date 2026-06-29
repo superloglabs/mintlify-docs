@@ -1,7 +1,7 @@
 ---
-title: "OpenTelemetry Data in Superlog"
+title: "Sending OpenTelemetry Traces, Logs, and Metrics to Superlog"
 sidebarTitle: "Telemetry"
-description: "Superlog ingests OpenTelemetry traces, logs, and metrics over OTLP. Learn what data Superlog stores and how to query it."
+description: "Superlog ingests OpenTelemetry traces, logs, and metrics over OTLP/HTTP. Learn the ingest endpoints, auth headers, and resource attributes to get started."
 ---
 
 Superlog is built on [OpenTelemetry](https://opentelemetry.io/) (OTel). It accepts all three OTel signal types — **traces**, **logs**, and **metrics** — over the standard OTLP HTTP protocol. If your services are already instrumented with an OpenTelemetry SDK or agent, you can point them at Superlog without changing your instrumentation code.

@@ -16,7 +16,7 @@ Management keys are org-scoped credentials used to call the REST management API 
 - Cannot be minted via the API itself — dashboard access is required.
 - Shown in plaintext exactly once at creation time.
 
-### Ingest keys (`sl_live_…`)
+### Ingest keys (`sl_public_…`)
 
 Ingest keys are project-scoped credentials used to push OTLP telemetry to Superlog. They authenticate the standard OTLP endpoints:
 
@@ -74,7 +74,7 @@ const response = await fetch("https://api.superlog.sh/api/v1/projects", {
 
 ## Personal Access Tokens (PATs) for the MCP server
 
-If you are connecting an AI assistant via the Superlog MCP server, you need a **Personal Access Token** rather than a management key. PATs are user-scoped and bound to a single project.
+If you are connecting an AI assistant via the Superlog MCP server, you need a **Personal Access Token** rather than a management key. PATs carry the prefix `superlog_pat_…`, are user-scoped, and are bound to a single project.
 
 <Steps>
   <Step title="Open Settings → API Tokens">
@@ -88,7 +88,7 @@ If you are connecting an AI assistant via the Superlog MCP server, you need a **
   </Step>
 </Steps>
 
-For full MCP setup instructions, see the [MCP Server](/api/mcp-tools) reference.
+For full MCP setup instructions, see the [MCP Server](/api/mcp-overview) reference.
 
 ---
 

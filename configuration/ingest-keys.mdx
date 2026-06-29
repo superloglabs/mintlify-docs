@@ -1,5 +1,5 @@
 ---
-title: "Manage Ingest API Keys in Superlog"
+title: "Manage Superlog Ingest Keys and Management API Keys"
 sidebarTitle: "Ingest Keys"
 description: "Ingest API keys authenticate your OpenTelemetry instrumentation with Superlog. Create, rotate, and revoke keys from the project settings page."
 ---
@@ -85,12 +85,9 @@ For full details on ingest endpoints and supported OTLP formats, see the [OTLP I
   </Step>
 </Steps>
 
-To revoke via the management API:
-
-```bash
-curl -X DELETE https://<host>/api/v1/projects/<projectId>/api-keys/<keyId> \
-  -H "Authorization: Bearer sl_management_xxxx"
-```
+<Note>
+  Ingest key revocation is not available through the management API. Use the dashboard steps above to revoke a key.
+</Note>
 
 ## Rotating a key safely
 

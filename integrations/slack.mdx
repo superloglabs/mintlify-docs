@@ -1,10 +1,10 @@
 ---
-title: "Connect Slack for Superlog Incident Notifications"
+title: "Slack Integration: Superlog Incident Notifications"
 sidebarTitle: "Slack"
-description: "Receive Superlog incident alerts and agent run results directly in Slack. Resolve incidents and trigger follow-up investigations from any channel."
+description: "Receive Superlog incident alerts and agent run results directly in Slack. Resolve incidents and leave feedback on investigations without leaving Slack."
 ---
 
-Connecting Slack brings Superlog notifications into the channel your team already watches. When a new incident is created or an agent run completes, Superlog posts a message with the key details and a set of action buttons — so you can resolve an incident or kick off a follow-up investigation without leaving Slack.
+Connecting Slack brings Superlog notifications into the channel your team already watches. When a new incident is created or an agent run completes, Superlog posts a message with the key details and a set of action buttons — so you can resolve an incident or leave feedback on the investigation without leaving Slack.
 
 ## What the Slack integration does
 
@@ -18,8 +18,8 @@ Connecting Slack brings Superlog notifications into the channel your team alread
   <Card title="Resolve from Slack" icon="circle-check">
     Click the **Resolve** button directly in the Slack message. No need to open the Superlog dashboard.
   </Card>
-  <Card title="Request follow-up" icon="arrow-rotate-right">
-    If the first investigation didn't fully resolve the incident, click **Request follow-up** to trigger another agent run.
+  <Card title="Give feedback" icon="comment">
+    Click **Give feedback** to leave a note on an agent run. Your input helps improve the agent's accuracy over time.
   </Card>
 </CardGroup>
 
@@ -60,14 +60,17 @@ Connecting Slack brings Superlog notifications into the channel your team alread
 
 Every Slack notification from Superlog includes action buttons that let you act without opening the dashboard.
 
-### On incident creation
+### Resolve
 
-- **Resolve** — marks the incident as resolved immediately. If the incident is already resolved, clicking this button refreshes its side-effects (re-sends downstream webhooks, updates linked tickets).
+The **✅ Resolve** button appears on incident and agent run messages. Clicking it marks the incident as resolved immediately, closes any linked Linear tickets, and re-sends downstream webhooks. If the incident is already resolved, clicking the button refreshes those side-effects without creating a duplicate resolution.
 
-### On agent run completion
+### Give feedback
 
-- **Resolve** — resolves the incident once you are satisfied with the agent's findings.
-- **Request follow-up** — triggers a new agent run for the same incident, useful when the initial investigation surfaced partial information or you want the agent to explore a different hypothesis.
+The **💬 Give feedback** button opens a short modal where you can leave a note on how the agent handled the investigation. Your feedback is surfaced to the Superlog team to help improve the agent's accuracy over time.
+
+### Follow-up offer
+
+After an agent run completes, Superlog may post a follow-up offer if the investigation surfaced partial information or the agent suggests a different hypothesis is worth exploring. The offer includes a **✅ Confirm** button to trigger a new agent run and a **✖ Dismiss** button to close the offer without re-running.
 
 <Note>
   Button clicks are authenticated against the Slack signing secret. Only members of your Slack workspace can trigger actions.

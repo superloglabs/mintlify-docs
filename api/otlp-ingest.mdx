@@ -11,13 +11,13 @@ Superlog's ingest proxy accepts standard OTLP/HTTP requests. Point your OpenTele
 All OTLP endpoints require an `Authorization` header carrying a project ingest key:
 
 ```
-Authorization: Bearer sl_live_xxxx
+Authorization: Bearer sl_public_xxxx
 ```
 
-Ingest keys are created per-project in **Settings → API Keys**. They are prefixed `sl_live_` and have no expiry by default; you can revoke them at any time.
+Ingest keys are created per-project in **Settings → API Keys**. They are prefixed `sl_public_` (legacy keys use the `superlog_live_` prefix) and have no expiry by default; you can revoke them at any time.
 
 <Note>
-  Do not use a Personal Access Token (PAT) on ingest endpoints. PATs are for the MCP server only. Sending a `superlog_cli_*` or `sl_pat_*` token to an ingest endpoint returns `401`.
+  Do not use a Personal Access Token (PAT) on ingest endpoints. PATs are for the MCP server only. Sending a `superlog_cli_*` or `superlog_pat_*` token to an ingest endpoint returns `401`.
 </Note>
 
 ## Base URL
@@ -133,7 +133,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 const exporter = new OTLPTraceExporter({
   url: 'https://<your-superlog-host>/v1/traces',
   headers: {
-    Authorization: 'Bearer sl_live_xxxx',
+    Authorization: 'Bearer sl_public_xxxx',
   },
 });
 ```
@@ -144,7 +144,7 @@ Point the equivalent log and metric exporters at `/v1/logs` and `/v1/metrics` re
 
 ```bash
 curl -X POST https://<your-superlog-host>/v1/traces \
-  -H "Authorization: Bearer sl_live_xxxx" \
+  -H "Authorization: Bearer sl_public_xxxx" \
   -H "Content-Type: application/json" \
   -d @traces.json
 ```
@@ -163,7 +163,7 @@ Common errors:
 
 | Status | `error` value | What to do |
 |---|---|---|
-| `401` | `invalid api key` | Check that the key exists and has not been revoked in Settings → API Keys |
+| `401` | `invalid api key` | Check that the key exists and has not been revoked in **Settings → API Keys** |
 | `401` | `missing api key` | Add the `Authorization: Bearer <key>` header |
 | `402` | `telemetry quota exceeded…` | Upgrade your plan or wait for the next billing period |
 | `413` | `request body exceeds the … limit` | Split the batch into smaller payloads |

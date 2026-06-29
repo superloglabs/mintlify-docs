@@ -307,6 +307,26 @@ Dashboard template variables are named picklists that drive widget filters. Defi
 
 ---
 
+### update\_dashboard
+
+Rename a dashboard.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="id" type="uuid" required>
+      Dashboard to update.
+    </ParamField>
+    <ParamField body="name" type="string" required>
+      New display name (max 120 characters).
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
 ### add\_dashboard\_widget
 
 Append a widget to an existing dashboard.
@@ -514,6 +534,9 @@ For `logs` and `traces` sources, `aggregation` must be `count`. For `metric` sou
     <ParamField body="window_minutes" type="integer" optional>
       Evaluation window in minutes. Range: 1–1440. Default: `5`.
     </ParamField>
+    <ParamField body="evaluation_interval_seconds" type="integer" optional>
+      How often the alert is evaluated, in seconds. Range: 15–3600.
+    </ParamField>
     <ParamField body="enabled" type="boolean" optional>
       Whether the alert is active. Defaults to `true`.
     </ParamField>
@@ -567,6 +590,9 @@ Patch an existing alert. Provide only the fields you want to change. Validation 
     <ParamField body="window_minutes" type="integer" optional>
       Replacement evaluation window in minutes.
     </ParamField>
+    <ParamField body="evaluation_interval_seconds" type="integer" optional>
+      How often the alert is evaluated, in seconds. Range: 15–3600.
+    </ParamField>
   </Accordion>
 </AccordionGroup>
 
@@ -595,7 +621,45 @@ Evaluate a draft alert specification against current data without saving it. Ret
 
 <AccordionGroup>
   <Accordion title="Parameters">
-    Same as `create_alert`. No `id` is required.
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="name" type="string" required>
+      Display name for the draft alert (max 200 characters).
+    </ParamField>
+    <ParamField body="source" type="string" required>
+      Telemetry source: `logs`, `traces`, or `metric`.
+    </ParamField>
+    <ParamField body="aggregation" type="string" required>
+      How to aggregate the data: `count` (logs/traces) or `sum`/`avg` (metric).
+    </ParamField>
+    <ParamField body="comparator" type="string" required>
+      `gt` fires when value > threshold; `lt` fires when value < threshold.
+    </ParamField>
+    <ParamField body="threshold" type="number" required>
+      The numeric threshold to compare against.
+    </ParamField>
+    <ParamField body="metric_name" type="string" optional>
+      Required when `source` is `metric`.
+    </ParamField>
+    <ParamField body="filter" type="object" optional>
+      Equality filters that narrow the data the alert evaluates.
+    </ParamField>
+    <ParamField body="group_by" type="string" optional>
+      Resource attribute to group by, e.g. `service.name`.
+    </ParamField>
+    <ParamField body="group_mode" type="string" optional>
+      `single` rolls all groups into one evaluation; `per_group` fires independently per distinct `group_by` value.
+    </ParamField>
+    <ParamField body="window_minutes" type="integer" optional>
+      Evaluation window in minutes. Range: 1–1440. Default: `5`.
+    </ParamField>
+    <ParamField body="evaluation_interval_seconds" type="integer" optional>
+      How often the alert is evaluated, in seconds. Range: 15–3600.
+    </ParamField>
+    <ParamField body="enabled" type="boolean" optional>
+      Whether the alert is enabled in the preview evaluation.
+    </ParamField>
   </Accordion>
 </AccordionGroup>
 
@@ -795,6 +859,23 @@ Set `status: "archived"` to retire a memory without deleting it — archived mem
     </ParamField>
     <ParamField body="status" type="string" optional>
       `active` or `archived`.
+    </ParamField>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+### delete\_agent\_memory
+
+Permanently delete a stored memory by ID. To retire a memory reversibly, prefer `update_agent_memory` with `status: "archived"` — archived memories stop being injected into investigations but remain visible in `list_agent_memories`.
+
+<AccordionGroup>
+  <Accordion title="Parameters">
+    <ParamField body="project_id" type="uuid" optional>
+      Defaults to the session's active project.
+    </ParamField>
+    <ParamField body="id" type="uuid" required>
+      Memory ID from `list_agent_memories`.
     </ParamField>
   </Accordion>
 </AccordionGroup>

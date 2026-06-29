@@ -1,7 +1,7 @@
 ---
-title: "Get Started with Superlog in Minutes"
+title: "Superlog Quickstart: Send Telemetry and Trigger AI Agents"
 sidebarTitle: "Quickstart"
-description: "Learn how to send your first OpenTelemetry data to Superlog and trigger your first AI agent investigation in three steps."
+description: "Create an account or spin up a local instance, send your first OpenTelemetry trace to Superlog, and watch an AI agent investigate your first incident."
 ---
 
 This guide walks you through the fastest path to a working Superlog setup: create an account or spin up a local instance, send your first OpenTelemetry trace, and watch an AI agent investigate your first incident. The whole process takes under five minutes.
@@ -30,8 +30,23 @@ This guide walks you through the fastest path to a working Superlog setup: creat
     Once running, the web app is available at `http://localhost:5173`.
   </Step>
 
+  <Step title="Install via coding agent (recommended)">
+    The fastest way to instrument an existing project is to hand the task to your coding agent. Copy the prompt below and paste it into Cursor, Claude Code, Codex, or any other agent. The agent runs the Superlog install skill end-to-end — it adds the SDK, instruments your code, and opens a PR.
+
+    ```
+    Run npx skills add superloglabs/skills --all and use the skills to install Superlog in this project
+    Use API key <your-api-key>.
+    ```
+
+    When you sign up on [superlog.sh](https://superlog.sh), the onboarding wizard generates this prompt with your API key already filled in so the agent can configure everything in one shot.
+
+    <Tip>
+      You can rotate your API key at any time from **Settings → API Keys** in the dashboard. The key is write-only, so it is safe to include in the agent prompt without exposing read access to your telemetry data.
+    </Tip>
+  </Step>
+
   <Step title="Get your ingest API key">
-    Superlog authenticates ingest requests with an API key attached as a bearer token.
+    Superlog authenticates ingest requests with an API key attached as a bearer token. If you are instrumenting manually rather than via the coding agent, create a key now.
 
     1. Open the dashboard (Cloud: [superlog.sh](https://superlog.sh) — Local: `http://localhost:5173`)
     2. Navigate to **Settings → API Keys**
@@ -42,8 +57,8 @@ This guide walks you through the fastest path to a working Superlog setup: creat
     </Note>
   </Step>
 
-  <Step title="Send telemetry">
-    Point your application's OTLP exporter at Superlog and include your API key as a bearer token.
+  <Step title="Send telemetry manually">
+    If you prefer to instrument your application yourself, point your OTLP exporter at Superlog and include your API key as a bearer token.
 
     **Ingest endpoints:**
 
@@ -86,20 +101,6 @@ This guide walks you through the fastest path to a working Superlog setup: creat
     OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4101
     OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <your-api-key>
     ```
-  </Step>
-
-  <Step title="Install via coding agent (recommended)">
-    The fastest way to instrument an existing project is to hand the task to your coding agent. Copy the prompt below and paste it into Cursor, Claude Code, Codex, or any other agent. The agent runs the Superlog install skill end-to-end — it adds the SDK, instruments your code, and opens a PR.
-
-    ```
-    Run npx skills add superloglabs/skills --all and use the skills to install Superlog in this project
-    ```
-
-    When you sign up on [superlog.sh](https://superlog.sh), the onboarding wizard generates a version of this prompt that already includes your API key so the agent can configure everything in one shot.
-
-    <Tip>
-      You can rotate your API key at any time from **Settings → API Keys** in the dashboard. The key is write-only, so it is safe to include in the agent prompt without exposing read access to your telemetry data.
-    </Tip>
   </Step>
 
   <Step title="Explore the dashboard">

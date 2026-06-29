@@ -25,10 +25,10 @@ Two authentication methods are supported.
 
 ### Personal Access Token (PAT)
 
-PATs are prefixed `sl_pat_...` and are created in **Settings → API Tokens**. Pass one in the `Authorization` header of every MCP request:
+PATs are prefixed `superlog_pat_...` and are created in **Settings → API Tokens**. Pass one in the `Authorization` header of every MCP request:
 
 ```
-Authorization: Bearer sl_pat_xxxx
+Authorization: Bearer superlog_pat_xxxx
 ```
 
 #### Creating a PAT
@@ -41,7 +41,7 @@ Authorization: Bearer sl_pat_xxxx
     Click the **New Token** button in the top-right corner.
   </Step>
   <Step title="Fill in the details">
-    Enter a descriptive name, select the project this token defaults to, and choose an expiry: **30 days**, **90 days**, **1 year**, or **never**.
+    Enter a descriptive name, select the project this token defaults to, and choose an expiry: **30 days**, **90 days**, or **never**.
   </Step>
   <Step title="Copy the token">
     Copy the full token value now — it is shown **only once** and cannot be recovered. If you lose it, revoke it and create a new one.
@@ -72,7 +72,7 @@ Add a `superlog` entry to `~/.claude_desktop_config.json`:
     "superlog": {
       "url": "https://<your-superlog-host>/mcp",
       "headers": {
-        "Authorization": "Bearer sl_pat_xxxx"
+        "Authorization": "Bearer superlog_pat_xxxx"
       }
     }
   }
@@ -88,7 +88,7 @@ Configure the MCP server in your client's settings:
 | Setting | Value |
 |---|---|
 | **Server URL** | `https://<your-superlog-host>/mcp` |
-| **Auth header** | `Authorization: Bearer sl_pat_xxxx` |
+| **Auth header** | `Authorization: Bearer superlog_pat_xxxx` |
 
 ### Quick Install via Coding Agent
 
@@ -145,7 +145,7 @@ POST /api/me/mcp-tokens
 |---|---|---|---|
 | `name` | string | No | Defaults to `"MCP token"` if omitted |
 | `projectId` | uuid | No | Required when your account has multiple projects in the active org |
-| `expiry` | string | No | `"30d"`, `"90d"`, `"1y"`, or `"never"`. Defaults to `"never"` |
+| `expiry` | string | No | `"30d"`, `"90d"`, or `"never"`. Defaults to `"never"` |
 
 **Response** — includes `plaintext` (the full token value, shown once):
 
@@ -154,8 +154,8 @@ POST /api/me/mcp-tokens
   "token": {
     "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
     "name": "My local assistant",
-    "tokenPrefix": "sl_pat_abc",
-    "plaintext": "sl_pat_xxxx...",
+    "tokenPrefix": "superlog_pat_abc",
+    "plaintext": "superlog_pat_xxxx...",
     "projectId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
     "expiresAt": null,
     "createdAt": "2025-01-01T00:00:00.000Z"

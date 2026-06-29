@@ -1,7 +1,7 @@
 ---
-title: "Superlog: Agentic Observability That Self-Heals Your Software"
+title: "Superlog: Agentic Observability, From Traces to Fix PRs"
 sidebarTitle: "Home"
-description: "Superlog ingests OpenTelemetry traces, logs, and metrics, groups them into incidents, and uses AI agents to investigate root causes and open fix PRs automatically."
+description: "Superlog ingests OTLP data, groups errors into incidents, and dispatches AI agents to investigate root causes and open fix PRs automatically."
 ---
 
 Superlog is an open-source agentic observability platform that watches your production systems, groups noisy signals into incidents, and dispatches AI agents to investigate root causes — all the way to opening a fix PR in your repository. Whether you run it locally or on Superlog Cloud, you get a complete telemetry workspace that works while you sleep.
@@ -30,7 +30,7 @@ Superlog takes you from raw telemetry to an automated fix in four straightforwar
     Add OpenTelemetry instrumentation to your app and point the OTLP exporter at your Superlog ingest endpoint. Use the one-line agent prompt to let a coding agent handle the wiring for you.
   </Step>
   <Step title="Telemetry flows in">
-    Superlog's ingest proxy receives your traces, logs, and metrics over OTLP and stores them in ClickHouse for fast, high-cardinality queries.
+    Superlog's ingest proxy receives your traces, logs, and metrics over OTLP and stores them for fast, high-cardinality queries.
   </Step>
   <Step title="Errors are grouped into incidents">
     The background worker fingerprints incoming errors and groups related signals into incidents, cutting through the noise so you see one item instead of thousands.
