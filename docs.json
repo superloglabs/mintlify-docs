@@ -97,7 +97,7 @@
     ]
   },
   "logo": {
-    "light": "/images/Darkbg-pictogramonly.png",
-    "dark": "/images/Nobg-pictogramonlydark.png"
+    "light": "/images/NoBG-landscapedarktight.svg",
+    "dark": "/images/NoBG-landscapelighttight.svg"
   }
 }
