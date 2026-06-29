@@ -95,5 +95,9 @@
         ]
       }
     ]
+  },
+  "logo": {
+    "light": "/images/Darkbg-pictogramonly.png",
+    "dark": "/images/Nobg-pictogramonlydark.png"
   }
 }
