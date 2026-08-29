@@ -60,6 +60,16 @@ Point your application's OTLP exporter at `http://localhost:4101` to start sendi
     ```
   </Step>
 
+  <Step title="Configure the database URL">
+    Point the database package at the Postgres started by Compose. Superlog reads `DATABASE_URL` from `packages/db/.env`, so create it from the included example (the defaults already match the Compose Postgres):
+
+    ```bash
+    cp packages/db/.env.example packages/db/.env
+    ```
+
+    This `.env` is gitignored, so it is safe to create and won't be committed.
+  </Step>
+
   <Step title="Run database migrations">
     Apply the schema migrations to the database:
 
@@ -67,7 +77,7 @@ Point your application's OTLP exporter at `http://localhost:4101` to start sendi
     pnpm --filter @superlog/db db:migrate
     ```
 
-    You only need to run this once on a fresh install, and again after pulling commits that include new migrations.
+    You only need to run this once on a fresh install, and again after pulling commits that include new migrations. If you changed the Postgres credentials or port in `docker-compose.yml`, update `DATABASE_URL` in `packages/db/.env` to match.
   </Step>
 
   <Step title="Start all services">
